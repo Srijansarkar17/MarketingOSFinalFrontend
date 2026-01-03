@@ -2,16 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { 
   Target, 
   Users, 
-  MapPin, 
-  PieChart as PieChartIcon,
-  BarChart3,
   Smartphone,
   Clock,
-  Award,
   Brain,
   AlertCircle,
   TrendingUp,
-  Globe,
   DollarSign,
   Phone,
   RefreshCw,
@@ -22,33 +17,24 @@ import {
   Sparkles,
   ChevronRight,
   Download,
-  Filter,
-  Search,
   MoreVertical,
   Info,
-  BarChart,
-  LineChart,
-  TrendingDown,
   Cpu
 } from 'lucide-react';
 import { 
   fetchLatestTargetingIntel, 
   fetchUserTargetingIntel,
   testTargetingIntelConnection,
-  type TargetingIntelData, 
-  type InterestCluster 
+  type TargetingIntelData
 } from '../services/targetingIntel';
-import { getUserInfo, isAuthenticated, logout } from '../services/api';
+import { getUserInfo, isAuthenticated } from '../services/api';
 
 // Import Recharts components
 import {
   BarChart as ReBarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   PieChart as RePieChart, Pie, Cell,
-  LineChart as ReLineChart, Line, AreaChart, Area,
-  RadialBarChart, RadialBar,
-  ComposedChart,
-  ScatterChart, Scatter,
-  RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis
+  AreaChart, Area,
+  ComposedChart
 } from 'recharts';
 
 const TargetingIntel: React.FC = () => {
@@ -119,19 +105,6 @@ const TargetingIntel: React.FC = () => {
     if (num >= 1000000) return `${(num / 1000000).toFixed(1)}M`;
     if (num >= 1000) return `${(num / 1000).toFixed(1)}K`;
     return num.toFixed(0);
-  };
-
-  const formatCurrency = (amount: number | undefined | null): string => {
-    if (amount === undefined || amount === null || isNaN(amount)) {
-      return '$0';
-    }
-    
-    return new Intl.NumberFormat('en-US', {
-      style: 'currency',
-      currency: 'USD',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(amount);
   };
 
   const formatPercentage = (value: number | undefined | null): string => {
@@ -286,17 +259,6 @@ const TargetingIntel: React.FC = () => {
            '#8B5CF6'
   }));
 
-  const geographicSpendChartData = Object.entries(safeData.geographic_spend).map(([country, info]) => ({
-    country,
-    spend: info?.spend || 0,
-    percentage: info?.percentage || 0,
-    fill: (info?.percentage || 0) > 30 ? '#3B82F6' : 
-          (info?.percentage || 0) > 15 ? '#10B981' : 
-          (info?.percentage || 0) > 10 ? '#F59E0B' : 
-          (info?.percentage || 0) > 5 ? '#EF4444' : 
-          '#8B5CF6'
-  }));
-
   const interestClustersChartData = safeData.interest_clusters
     .slice(0, 8)
     .map((cluster, index) => ({
@@ -307,16 +269,6 @@ const TargetingIntel: React.FC = () => {
       color: ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899', '#06B6D4', '#8B5CF6'][index]
     }));
 
-  const funnelStageChartData = Object.entries(safeData.funnel_stage_prediction).map(([stage, info]) => ({
-    stage: stage.charAt(0).toUpperCase() + stage.slice(1),
-    percentage: info?.percentage || 0,
-    reach: (info?.reach || 0) / 1000000,
-    color: stage === 'awareness' ? '#3B82F6' : 
-           stage === 'consideration' ? '#10B981' : 
-           stage === 'conversion' ? '#F59E0B' : 
-           '#EF4444'
-  }));
-
   const biddingHourlyChartData = (safeData.bidding_strategy.hourly || []).map((hour, index) => ({
     time: hour?.time || `${index}:00`,
     cpm: hour?.cpm || 0,
@@ -324,19 +276,6 @@ const TargetingIntel: React.FC = () => {
     hourIndex: index,
     isPeak: hour?.time && hour.time >= '6pm' && hour.time <= '9pm'
   }));
-
-  const devicePreferenceData = [
-    { 
-      name: 'Mobile', 
-      value: ((safeData.advanced_targeting?.device_preference?.mobile || 0) * 100), 
-      color: '#10B981' 
-    },
-    { 
-      name: 'Desktop', 
-      value: ((safeData.advanced_targeting?.device_preference?.desktop || 0) * 100), 
-      color: '#3B82F6' 
-    }
-  ];
 
   const CustomTooltip = ({ active, payload, label }: any) => {
     if (active && payload && payload.length) {
@@ -738,14 +677,14 @@ const TargetingIntel: React.FC = () => {
                             <Cell key={`cell-${index}`} fill={entry.color} />
                           ))}
                         </Bar>
-                        <Line 
+                        <Area 
                           yAxisId="right"
                           type="monotone" 
                           dataKey="reach" 
                           stroke="#8B5CF6" 
                           strokeWidth={3}
-                          dot={{ r: 5 }}
-                          activeDot={{ r: 7 }}
+                          fill="url(#colorReach)"
+                          fillOpacity={0.1}
                           name="Reach"
                         />
                       </ComposedChart>
