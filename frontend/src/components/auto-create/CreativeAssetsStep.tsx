@@ -29,7 +29,7 @@ const CreativeAssetsStep: React.FC<CreativeAssetsStepProps> = ({ selectedGoal })
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Backend API URL
-  const API_BASE_URL = 'http://localhost:5009';
+  const API_BASE_URL = 'https://web-production-c8c5.up.railway.app';
 
   // Dummy images for demo (fallback)
   const dummyImages = [

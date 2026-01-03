@@ -3,7 +3,7 @@ import { Sparkles, Copy, ThumbsUp, MessageSquare, Wand2, Loader, Check, AlertCir
 import { motion } from 'framer-motion';
 
 // API service
-const API_BASE_URL = 'http://localhost:5013/api';
+const API_BASE_URL = 'https://web-production-c8c5.up.railway.app/api';
 
 interface CopyVariation {
   id: number;
