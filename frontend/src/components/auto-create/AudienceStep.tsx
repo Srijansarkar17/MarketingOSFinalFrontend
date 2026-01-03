@@ -1,24 +1,58 @@
-// AudienceStep.jsx
-import React, { useState, useEffect } from 'react';
+// AudienceStep.tsx
+import { useState, useEffect } from 'react';
 import { Users, TrendingUp, MapPin, Briefcase, Heart, Search, Save, Loader, AlertCircle, CheckCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-const AudienceStep = ({ campaignId, onSave, initialData }) => {
-  const [selectedDemographics, setSelectedDemographics] = useState([]);
-  const [selectedInterests, setSelectedInterests] = useState([]);
-  const [ageRange, setAgeRange] = useState([25, 45]);
-  const [targetLocations, setTargetLocations] = useState([]);
+interface Interest {
+  id: string;
+  label: string;
+  description: string;
+  growth_rate: string;
+  audience_size: string;
+}
+
+interface Location {
+  code: string;
+  name: string;
+  users: string;
+  growth: string;
+  regions: string[];
+}
+
+interface Insights {
+  estimated_audience: string;
+  engagement_multiplier: string;
+  average_age: string;
+  peak_activity: string;
+  device_preference: string;
+}
+
+interface AudienceStepProps {
+  campaignId?: string;
+  onSave?: (campaignId: string) => void;
+  initialData?: {
+    demographics?: string[];
+    selected_interests?: Interest[];
+    age_range_min?: number;
+    age_range_max?: number;
+    target_locations?: Location[];
+  };
+}
+
+const AudienceStep = ({ campaignId, onSave, initialData }: AudienceStepProps) => {
+  const [selectedDemographics, setSelectedDemographics] = useState<string[]>([]);
+  const [selectedInterests, setSelectedInterests] = useState<Interest[]>([]);
+  const [ageRange, setAgeRange] = useState<[number, number]>([25, 45]);
+  const [targetLocations, setTargetLocations] = useState<Location[]>([]);
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [insights, setInsights] = useState(null);
-  const [presetInterests, setPresetInterests] = useState([]);
-  const [presetLocations, setPresetLocations] = useState([]);
+  const [insights, setInsights] = useState<Insights | null>(null);
+  const [presetInterests, setPresetInterests] = useState<Interest[]>([]);
+  const [presetLocations, setPresetLocations] = useState<Location[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
-  const [error, setError] = useState(null);
+  const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-
-  // Get token from localStorage
-  const [token, setToken] = useState(null);
+  const [token, setToken] = useState<string | null>(null);
 
   useEffect(() => {
     const storedToken = localStorage.getItem('token');
@@ -57,8 +91,8 @@ const AudienceStep = ({ campaignId, onSave, initialData }) => {
       const interestsData = await interestsRes.json();
       const locationsData = await locationsRes.json();
 
-      setPresetInterests(interestsData.interests);
-      setPresetLocations(locationsData.locations);
+      setPresetInterests(interestsData.interests || []);
+      setPresetLocations(locationsData.locations || []);
     } catch (error) {
       console.error('Error loading preset data:', error);
     }
@@ -70,8 +104,8 @@ const AudienceStep = ({ campaignId, onSave, initialData }) => {
     { id: 'all', label: 'All Genders', percentage: '100%' }
   ];
 
-  const toggleDemographic = (id) => {
-    let newDemographics;
+  const toggleDemographic = (id: string) => {
+    let newDemographics: string[];
     if (id === 'all') {
       newDemographics = ['all'];
     } else {
@@ -82,7 +116,7 @@ const AudienceStep = ({ campaignId, onSave, initialData }) => {
     setSelectedDemographics(newDemographics);
   };
 
-  const toggleInterest = (interest) => {
+  const toggleInterest = (interest: Interest) => {
     setSelectedInterests(prev => {
       const exists = prev.find(item => item.id === interest.id);
       if (exists) {
@@ -93,7 +127,7 @@ const AudienceStep = ({ campaignId, onSave, initialData }) => {
     });
   };
 
-  const toggleLocation = (location) => {
+  const toggleLocation = (location: Location) => {
     setTargetLocations(prev => {
       const exists = prev.find(item => item.name === location.name);
       if (exists) {
@@ -167,7 +201,7 @@ const AudienceStep = ({ campaignId, onSave, initialData }) => {
     setSuccess(false);
     
     try {
-      const payload = {
+      const payload: any = {
         demographics: selectedDemographics,
         age_range_min: ageRange[0],
         age_range_max: ageRange[1],
@@ -193,7 +227,7 @@ const AudienceStep = ({ campaignId, onSave, initialData }) => {
       
       if (data.success) {
         setSuccess(true);
-        if (onSave) {
+        if (onSave && data.campaign_id) {
           onSave(data.campaign_id);
         }
         // Get fresh insights after saving

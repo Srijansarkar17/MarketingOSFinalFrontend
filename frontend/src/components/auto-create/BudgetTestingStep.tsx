@@ -1,22 +1,69 @@
-// BudgetTestingStep.jsx
-import React, { useState, useEffect } from 'react';
+// BudgetTestingStep.tsx
+import { useState, useEffect } from 'react';
 import { DollarSign, Calendar, TrendingUp, Zap, BarChart3, Target, Save, Loader, AlertCircle, CheckCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 
-const BudgetTestingStep = ({ campaignId, onSave, initialData }) => {
+interface TestingOption {
+  id: string;
+  title: string;
+  description: string;
+  variants: number;
+}
+
+interface BudgetOption {
+  value: number;
+  label: string;
+  desc: string;
+}
+
+interface Projections {
+  daily: {
+    impressions: string;
+    clicks: string;
+    conversions: string;
+    cpa: string;
+  };
+  lifetime: {
+    impressions: string;
+    clicks: string;
+    conversions: string;
+    total_spend: string;
+  };
+  expected_roas?: string;
+}
+
+interface BudgetTestingStepProps {
+  campaignId?: string;
+  onSave?: (campaignId: string) => void;
+  initialData?: {
+    budget_type?: string;
+    budget_amount?: number;
+    campaign_duration?: number;
+    selected_tests?: string[];
+    messaging_tone?: string;
+    campaign_goal?: string;
+    demographics?: string[];
+    age_range_min?: number;
+    age_range_max?: number;
+    selected_interests?: any[];
+    target_locations?: any[];
+    projections?: Projections;
+  };
+}
+
+const BudgetTestingStep = ({ campaignId, onSave, initialData }: BudgetTestingStepProps) => {
   const [budgetType, setBudgetType] = useState('daily');
   const [budget, setBudget] = useState(500);
   const [duration, setDuration] = useState(14);
-  const [selectedTests, setSelectedTests] = useState(['creative', 'audience']);
+  const [selectedTests, setSelectedTests] = useState<string[]>(['creative', 'audience']);
   const [messagingTone, setMessagingTone] = useState('');
-  const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [projections, setProjections] = useState(null);
-  const [testingOptions, setTestingOptions] = useState([]);
-  const [budgetOptions, setBudgetOptions] = useState([]);
-  const [error, setError] = useState(null);
+  const [projections, setProjections] = useState<Projections | null>(null);
+  const [testingOptions, setTestingOptions] = useState<TestingOption[]>([]);
+  const [budgetOptions, setBudgetOptions] = useState<BudgetOption[]>([]);
+  const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
-  const [token, setToken] = useState(null);
+  const [token, setToken] = useState<string | null>(null);
 
   // Get token from localStorage
   useEffect(() => {
@@ -55,7 +102,7 @@ const BudgetTestingStep = ({ campaignId, onSave, initialData }) => {
     try {
       const response = await fetch('http://localhost:5012/api/budget-testing/testing-options');
       const data = await response.json();
-      setTestingOptions(data.testing_options);
+      setTestingOptions(data.testing_options || []);
     } catch (error) {
       console.error('Error loading testing options:', error);
     }
@@ -63,10 +110,9 @@ const BudgetTestingStep = ({ campaignId, onSave, initialData }) => {
 
   const loadBudgetRecommendations = async () => {
     try {
-      // You can pass campaign goal here if available
       const response = await fetch('http://localhost:5012/api/budget-testing/budget-recommendations');
       const data = await response.json();
-      setBudgetOptions(data.recommendations);
+      setBudgetOptions(data.recommendations || []);
     } catch (error) {
       console.error('Error loading budget recommendations:', error);
       // Default options if API fails
@@ -89,7 +135,6 @@ const BudgetTestingStep = ({ campaignId, onSave, initialData }) => {
       return;
     }
 
-    setLoading(true);
     setError(null);
     
     try {
@@ -116,8 +161,6 @@ const BudgetTestingStep = ({ campaignId, onSave, initialData }) => {
     } catch (error) {
       console.error('Error getting projections:', error);
       setError('Failed to connect to server');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -142,7 +185,7 @@ const BudgetTestingStep = ({ campaignId, onSave, initialData }) => {
     setSuccess(false);
     
     try {
-      const payload = {
+      const payload: any = {
         budget_type: budgetType,
         budget_amount: budget,
         campaign_duration: duration,
@@ -158,8 +201,10 @@ const BudgetTestingStep = ({ campaignId, onSave, initialData }) => {
 
       // Add any existing campaign data
       if (initialData) {
-        ['campaign_goal', 'demographics', 'age_range_min', 'age_range_max', 
-         'selected_interests', 'target_locations'].forEach(field => {
+        const fields = ['campaign_goal', 'demographics', 'age_range_min', 'age_range_max', 
+         'selected_interests', 'target_locations'] as const;
+        
+        fields.forEach(field => {
           if (initialData[field] !== undefined) {
             payload[field] = initialData[field];
           }
@@ -179,7 +224,7 @@ const BudgetTestingStep = ({ campaignId, onSave, initialData }) => {
       if (data.success) {
         setSuccess(true);
         setProjections(data.projections);
-        if (onSave) {
+        if (onSave && data.campaign_id) {
           onSave(data.campaign_id);
         }
       } else {
@@ -193,7 +238,7 @@ const BudgetTestingStep = ({ campaignId, onSave, initialData }) => {
     }
   };
 
-  const toggleTest = (id) => {
+  const toggleTest = (id: string) => {
     setSelectedTests(prev =>
       prev.includes(id) ? prev.filter(t => t !== id) : [...prev, id]
     );
@@ -211,7 +256,7 @@ const BudgetTestingStep = ({ campaignId, onSave, initialData }) => {
   }, [budgetType, budget, duration, selectedTests, token]);
 
   // Default projections if API fails
-  const defaultProjections = {
+  const defaultProjections: Projections = {
     daily: {
       impressions: '45,000 - 62,000',
       clicks: '1,200 - 1,800',

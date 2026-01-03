@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Sparkles, Copy, ThumbsUp, RefreshCw, MessageSquare, Wand2, Loader, Check, AlertCircle } from 'lucide-react';
+import { Sparkles, Copy, ThumbsUp, MessageSquare, Wand2, Loader, Check, AlertCircle } from 'lucide-react';
 import { motion } from 'framer-motion';
 
 // API service

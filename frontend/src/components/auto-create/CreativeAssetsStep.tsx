@@ -5,7 +5,6 @@ import { motion } from 'framer-motion';
 
 interface CreativeAssetsStepProps {
   selectedGoal: string | null;
-  setSelectedGoal: (goal: string) => void;
 }
 
 interface GeneratedImage {
@@ -17,7 +16,7 @@ interface GeneratedImage {
   type: string;
 }
 
-const CreativeAssetsStep: React.FC<CreativeAssetsStepProps> = ({ selectedGoal, setSelectedGoal }) => {
+const CreativeAssetsStep: React.FC<CreativeAssetsStepProps> = ({ selectedGoal }) => {
   const [selectedAssets, setSelectedAssets] = useState<number[]>([]);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
@@ -30,7 +29,7 @@ const CreativeAssetsStep: React.FC<CreativeAssetsStepProps> = ({ selectedGoal, s
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Backend API URL
-  const API_BASE_URL = 'http://localhost:5009'; // Change to your backend URL
+  const API_BASE_URL = 'http://localhost:5009';
 
   // Dummy images for demo (fallback)
   const dummyImages = [
@@ -60,6 +59,54 @@ const CreativeAssetsStep: React.FC<CreativeAssetsStepProps> = ({ selectedGoal, s
     { label: 'Color Scheme', value: 'High Contrast', stat: '+28% CTR', color: 'from-emerald-500 to-teal-600' }
   ];
 
+  const storeUploadResponse = (response: any) => {
+    localStorage.setItem('last_upload_response', JSON.stringify(response));
+    if (response.campaign_id) {
+      localStorage.setItem('campaign_id', response.campaign_id);
+    }
+  };
+
+  const uploadImageToBackend = async (file: File, imageDataUrl: string) => {
+    try {
+      setUploading(true);
+      const base64Data = imageDataUrl.split(',')[1];
+      
+      const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+      
+      const response = await fetch(`${API_BASE_URL}/api/upload-image`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: token,
+          image_data: base64Data,
+          filename: file.name,
+          campaign_id: localStorage.getItem('campaign_id'),
+          asset_data: {
+            title: file.name,
+            type: 'user_uploaded',
+            score: 0
+          }
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        console.log('Image uploaded successfully:', data.image_url);
+        // Store the response including campaign_id
+        storeUploadResponse(data);
+      } else {
+        console.error('Upload failed:', data.error);
+      }
+    } catch (error) {
+      console.error('Error uploading image:', error);
+    } finally {
+      setUploading(false);
+    }
+  };
+
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
@@ -78,54 +125,6 @@ const CreativeAssetsStep: React.FC<CreativeAssetsStepProps> = ({ selectedGoal, s
     }
   };
 
-  const storeUploadResponse = (response: any) => {
-  localStorage.setItem('last_upload_response', JSON.stringify(response));
-  if (response.campaign_id) {
-    localStorage.setItem('campaign_id', response.campaign_id);
-  }
-};
-
-  const uploadImageToBackend = async (file: File, imageDataUrl: string) => {
-  try {
-    setUploading(true);
-    const base64Data = imageDataUrl.split(',')[1];
-    
-    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-    
-    const response = await fetch(`${API_BASE_URL}/api/upload-image`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        user_id: token,
-        image_data: base64Data,
-        filename: file.name,
-        campaign_id: localStorage.getItem('campaign_id'),
-        asset_data: {
-          title: file.name,
-          type: 'user_uploaded',
-          score: 0
-        }
-      })
-    });
-    
-    const data = await response.json();
-    
-    if (data.success) {
-      console.log('Image uploaded successfully:', data.image_url);
-      // Store the response including campaign_id
-      storeUploadResponse(data);
-    } else {
-      console.error('Upload failed:', data.error);
-    }
-  } catch (error) {
-    console.error('Error uploading image:', error);
-  } finally {
-    setUploading(false);
-  }
-};
-
   const handleGenerateAssets = async () => {
     if (!uploadedImage || !uploadedFile) return;
     
@@ -135,7 +134,7 @@ const CreativeAssetsStep: React.FC<CreativeAssetsStepProps> = ({ selectedGoal, s
     // Simulate progress while calling API
     const progressInterval = setInterval(() => {
       setGenerationProgress(prev => {
-        if (prev >= 90) { // Stop at 90%, let API call complete to 100%
+        if (prev >= 90) {
           clearInterval(progressInterval);
           return 90;
         }
@@ -156,7 +155,7 @@ const CreativeAssetsStep: React.FC<CreativeAssetsStepProps> = ({ selectedGoal, s
         body: JSON.stringify({
           user_id: token,
           image_url: uploadedImage,
-          campaign_goal: selectedGoal,
+          campaign_goal: selectedGoal || 'awareness', // Fixed: Provide default value
           campaign_id: campaignId
         })
       });
@@ -170,7 +169,7 @@ const CreativeAssetsStep: React.FC<CreativeAssetsStepProps> = ({ selectedGoal, s
         // Update with real generated assets from backend
         const backendAssets = data.assets.map((asset: any, index: number) => ({
           ...asset,
-          image: asset.image_url, // Map image_url to image for compatibility
+          image: asset.image_url,
           id: index + 1
         }));
         
@@ -256,104 +255,96 @@ const CreativeAssetsStep: React.FC<CreativeAssetsStepProps> = ({ selectedGoal, s
     setHasGenerated(true);
   };
 
-  // Update the saveSelectedAssets function to be more robust
-const saveSelectedAssets = async () => {
-  try {
-    const selectedAssetsData = generatedAssets
-      .filter(asset => selectedAssets.includes(asset.id))
-      .map(asset => ({
-        id: asset.id,
-        title: asset.title,
-        image_url: asset.image,
-        prompt: asset.prompt,
-        score: asset.score,
-        type: asset.type
-      }));
-    
-    if (selectedAssetsData.length === 0) {
-      alert('Please select at least one asset');
-      return;
-    }
-    
-    // Try to get token from multiple possible locations
-    const token = localStorage.getItem('token') || 
-                  sessionStorage.getItem('token') || 
-                  localStorage.getItem('auth_token') ||
-                  sessionStorage.getItem('auth_token');
-    
-    if (!token) {
-      alert('Please login first');
-      return;
-    }
-    
-    // Try to get campaign_id from multiple sources
-    let campaignId = localStorage.getItem('campaign_id');
-    
-    // If no campaign_id found, try to get it from the URL or create a new one
-    if (!campaignId) {
-      // Check if we have a campaign_id from a previous upload
-      const lastUploadResponse = localStorage.getItem('last_upload_response');
-      if (lastUploadResponse) {
-        const parsed = JSON.parse(lastUploadResponse);
-        if (parsed.campaign_id) {
-          campaignId = parsed.campaign_id;
+  const saveSelectedAssets = async () => {
+    try {
+      const selectedAssetsData = generatedAssets
+        .filter(asset => selectedAssets.includes(asset.id))
+        .map(asset => ({
+          id: asset.id,
+          title: asset.title,
+          image_url: asset.image,
+          prompt: asset.prompt,
+          score: asset.score,
+          type: asset.type
+        }));
+      
+      if (selectedAssetsData.length === 0) {
+        alert('Please select at least one asset');
+        return;
+      }
+      
+      const token = localStorage.getItem('token') || 
+                    sessionStorage.getItem('token') || 
+                    localStorage.getItem('auth_token') ||
+                    sessionStorage.getItem('auth_token');
+      
+      if (!token) {
+        alert('Please login first');
+        return;
+      }
+      
+      let campaignId = localStorage.getItem('campaign_id');
+      
+      if (!campaignId) {
+        const lastUploadResponse = localStorage.getItem('last_upload_response');
+        if (lastUploadResponse) {
+          const parsed = JSON.parse(lastUploadResponse);
+          if (parsed.campaign_id) {
+            campaignId = parsed.campaign_id;
+          }
+        }
+        
+        if (!campaignId) {
+          alert('No campaign found. Creating a new campaign...');
+          
+          const createCampaignResponse = await fetch(`${API_BASE_URL}/api/create-campaign`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              user_id: token,
+              campaign_goal: selectedGoal || 'awareness' // Fixed: Provide default value
+            })
+          });
+          
+          const createData = await createCampaignResponse.json();
+          
+          if (createData.success && createData.campaign_id) {
+            campaignId = createData.campaign_id;
+            localStorage.setItem('campaign_id', campaignId);
+          } else {
+            alert('Failed to create campaign. Please try uploading an image first.');
+            return;
+          }
         }
       }
       
-      // If still no campaign_id, create a new campaign first
-      if (!campaignId) {
-        alert('No campaign found. Creating a new campaign...');
-        
-        // Create a new campaign by uploading a dummy image or calling a create campaign endpoint
-        const createCampaignResponse = await fetch(`${API_BASE_URL}/api/create-campaign`, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            user_id: token,
-            campaign_goal: selectedGoal || 'awareness'
-          })
-        });
-        
-        const createData = await createCampaignResponse.json();
-        
-        if (createData.success && createData.campaign_id) {
-          campaignId = createData.campaign_id;
-          localStorage.setItem('campaign_id', campaignId);
-        } else {
-          alert('Failed to create campaign. Please try uploading an image first.');
-          return;
-        }
+      const response = await fetch(`${API_BASE_URL}/api/save-selected-assets`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          user_id: token,
+          selected_assets: selectedAssetsData,
+          campaign_id: campaignId
+        })
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        alert(`${selectedAssetsData.length} assets saved successfully!`);
+      } else {
+        console.error('Save failed:', data.error);
+        alert(`Failed to save assets: ${data.error}`);
       }
+    } catch (error) {
+      console.error('Error saving selected assets:', error);
+      alert('Error saving selected assets. Please try again.');
     }
-    
-    const response = await fetch(`${API_BASE_URL}/api/save-selected-assets`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        user_id: token,
-        selected_assets: selectedAssetsData,
-        campaign_id: campaignId
-      })
-    });
-    
-    const data = await response.json();
-    
-    if (data.success) {
-      alert(`${selectedAssetsData.length} assets saved successfully!`);
-      // You can navigate to next step or update UI here
-    } else {
-      console.error('Save failed:', data.error);
-      alert(`Failed to save assets: ${data.error}`);
-    }
-  } catch (error) {
-    console.error('Error saving selected assets:', error);
-    alert('Error saving selected assets. Please try again.');
-  }
-};
+  };
 
   const handleRemoveImage = () => {
     setUploadedImage(null);
@@ -393,7 +384,6 @@ const saveSelectedAssets = async () => {
   };
 
   const downloadAsset = (imageUrl: string, title: string) => {
-    // For dummy data, we'll open the image in a new tab
     window.open(imageUrl, '_blank');
   };
 
@@ -512,7 +502,6 @@ const saveSelectedAssets = async () => {
                       </div>
                     </div>
 
-                    {/* Progress Bar */}
                     {(isGenerating || uploading) && (
                       <div className="p-4 bg-slate-50 rounded-xl">
                         <div className="flex justify-between text-sm text-slate-600 mb-2">
@@ -602,12 +591,10 @@ const saveSelectedAssets = async () => {
                     className="w-full h-full object-cover"
                   />
                   
-                  {/* Score Badge */}
                   <div className="absolute top-4 right-4 px-3 py-1.5 rounded-full bg-emerald-500 text-white text-sm font-bold">
                     Score: {asset.score}
                   </div>
 
-                  {/* Overlay Actions */}
                   <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity">
                     <div className="absolute bottom-4 left-4 right-4 flex gap-2">
                       <button
@@ -665,7 +652,6 @@ const saveSelectedAssets = async () => {
             ))}
           </div>
 
-          {/* Selected Assets Summary */}
           {selectedAssets.length > 0 && (
             <div className="mb-8 p-6 bg-gradient-to-r from-cyan-50 to-teal-50 rounded-2xl border border-cyan-200">
               <div className="flex items-center justify-between">
@@ -711,7 +697,6 @@ const saveSelectedAssets = async () => {
               ))}
             </div>
 
-            {/* Additional Tips */}
             <div className="mt-8 pt-8 border-t border-slate-200">
               <h4 className="text-lg font-semibold text-slate-800 mb-4">Tips for Better Results</h4>
               <div className="grid md:grid-cols-2 gap-4">
