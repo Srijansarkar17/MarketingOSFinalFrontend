@@ -7,7 +7,7 @@ interface AdCarouselProps {
   category: 'recommended' | 'trending' | 'top';
 }
 
-const AdCarousel: React.FC<AdCarouselProps> = ({ category }) => {
+const AdCarousel: React.FC<AdCarouselProps> = ({}) => {
   const scrollRef = useRef<HTMLDivElement>(null);
 
   const ads = [
