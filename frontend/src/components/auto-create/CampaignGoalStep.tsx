@@ -91,7 +91,7 @@ const CampaignGoalStep: React.FC<CampaignGoalStepProps> = ({ selectedGoal, setSe
     try {
       console.log('Sending request with:', { goal: goalId, user_id_type: typeof userId });
       
-      const response = await fetch('http://localhost:5005/api/campaign-goal', {
+      const response = await fetch('https://web-production-c8c5.up.railway.app/api/campaign-goal', {
         method: 'POST',
         headers: { 
           'Content-Type': 'application/json'
