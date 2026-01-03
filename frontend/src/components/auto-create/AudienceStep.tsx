@@ -84,8 +84,8 @@ const AudienceStep = ({ campaignId, onSave, initialData }: AudienceStepProps) =>
   const loadPresetData = async () => {
     try {
       const [interestsRes, locationsRes] = await Promise.all([
-        fetch('http://localhost:5006/api/audience/preset-interests'),
-        fetch('http://localhost:5006/api/audience/preset-locations')
+        fetch('https://web-production-c8c5.up.railway.app/api/audience/preset-interests'),
+        fetch('https://web-production-c8c5.up.railway.app/api/audience/preset-locations')
       ]);
 
       const interestsData = await interestsRes.json();
@@ -147,7 +147,7 @@ const AudienceStep = ({ campaignId, onSave, initialData }: AudienceStepProps) =>
     setLoading(true);
     setError(null);
     try {
-      const response = await fetch('http://localhost:5006/api/audience/insights', {
+      const response = await fetch('https://web-production-c8c5.up.railway.app/api/audience/insights', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -215,7 +215,7 @@ const AudienceStep = ({ campaignId, onSave, initialData }: AudienceStepProps) =>
         payload.campaign_id = campaignId;
       }
 
-      const response = await fetch('http://localhost:5006/api/audience/targeting', {
+      const response = await fetch('https://web-production-c8c5.up.railway.app/api/audience/targeting', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
