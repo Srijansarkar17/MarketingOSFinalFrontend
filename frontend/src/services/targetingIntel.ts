@@ -600,18 +600,6 @@ export async function testTargetingIntelConnection(): Promise<{
 /**
  * Generate mock targeting for demo mode
  */
-function generateMockTargetingForUser(userId?: string): TargetingIntelData[] {
-  const userInfo = getUserInfo();
-  const userName = userInfo?.name || 'Demo User';
-  
-  console.log(`🎯 Generating mock targeting data for ${userName}`);
-  
-  return [{
-    ...mockTargetingIntelData,
-    competitor_name: `${userName}'s Competitor`,
-    data_source: 'MOCK_DEMO'
-  }];
-}
 
 export default {
   fetchUserTargetingIntel,

@@ -1,7 +1,7 @@
 // app/components/AdSurveillance.tsx
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -92,8 +92,8 @@ const AdSurveillance = () => {
   const [searchQuery, setSearchQuery] = useState('');
   
   // Chart data state
-  const [spendTrendData, setSpendTrendData] = useState<number[]>([26000, 19500, 13000, 6500, 0, 0, 0]);
-  const [platformDistribution, setPlatformDistribution] = useState<PlatformSpendData[]>([
+  const [spendTrendData] = useState<number[]>([26000, 19500, 13000, 6500, 0, 0, 0]);
+  const [platformDistribution] = useState<PlatformSpendData[]>([
     { platform: 'Meta', spend: 45300, percentage: 36.5, color: '#00C2B3' },
     { platform: 'Google', spend: 38900, percentage: 31.3, color: '#4A90E2' },
     { platform: 'TikTok', spend: 24700, percentage: 19.9, color: '#FF6B6B' },

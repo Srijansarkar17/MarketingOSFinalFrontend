@@ -502,7 +502,6 @@ function generateMockDailyMetrics(count: number = 5, latestOnly: boolean = false
   ];
   
   const mockData: AdCardData[] = [];
-  const today = new Date().toISOString().split('T')[0];
   
   for (let i = 0; i < count; i++) {
     const daysAgo = latestOnly ? 0 : Math.floor(Math.random() * 30);
