@@ -383,7 +383,7 @@ const CreativeAssetsStep: React.FC<CreativeAssetsStepProps> = ({ selectedGoal })
     );
   };
 
-  const downloadAsset = (imageUrl: string, title: string) => {
+  const downloadAsset = (imageUrl: string) => {
     window.open(imageUrl, '_blank');
   };
 

@@ -12,6 +12,11 @@ import {
   MobileNavMenu,
 } from './ui/resizable-navbar';
 
+interface NavItem {
+  name: string;
+  link: string;
+}
+
 const Navigation: React.FC = () => {
   const navigate = useNavigate();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -72,6 +77,14 @@ const Navigation: React.FC = () => {
     setIsMobileMenuOpen(false);
   };
 
+  // Create a handler for NavItems component that takes an index parameter
+  const handleNavItemClick = (index: number) => {
+    const item = navItems[index];
+    if (item) {
+      navigate(item.link);
+    }
+  };
+
   const handleLogout = () => {
     // Clear localStorage
     localStorage.removeItem('token');
@@ -94,7 +107,7 @@ const Navigation: React.FC = () => {
         {isLoggedIn && (
           <NavItems 
             items={navItems} 
-            onItemClick={(link) => navigate(link)}
+            onItemClick={handleNavItemClick}
           />
         )}
         <div className="flex items-center gap-4">
@@ -114,13 +127,13 @@ const Navigation: React.FC = () => {
             <>
               <NavbarButton 
                 variant="secondary"
-                onClick={() => navigate('login')}
+                onClick={() => navigate('/login')}
               >
                 Sign In
               </NavbarButton>
               <NavbarButton 
                 variant="gradient"
-                onClick={() => navigate('sign-up')}
+                onClick={() => navigate('/sign-up')}
               >
                 Get Started
               </NavbarButton>
