@@ -1,5 +1,5 @@
 // src/components/AdSurveillance.tsx
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -31,12 +31,7 @@ import {
 import { 
   fetchSummaryMetrics, 
   fetchDailyMetrics, 
-  testDatabaseConnection, 
-  getCompetitorSpendDistribution, 
-  getSpendRangeDistribution, 
-  getCTRPerformanceDistribution,
-  getSpendImpressionsCorrelation,
-  getPlatformCTRData,
+  testDatabaseConnection,
   getAnalyticsSummary,
   type SummaryMetrics, 
   type AdCardData, 
@@ -46,9 +41,9 @@ import {
   type CTRPerformanceData,
   type SpendImpressionData,
   type PlatformCTRData,
-  getUserInfo, // Added for user info
-  isAuthenticated, // Added for auth check
-  logout // Added for logout functionality
+  getUserInfo,
+  isAuthenticated,
+  logout
 } from '../services/api.ts';
 import { addCompetitor, type NewCompetitorInput } from '../services/competitors';
 
@@ -56,7 +51,6 @@ import { addCompetitor, type NewCompetitorInput } from '../services/competitors'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   PieChart, Pie, Cell,
-  LineChart, Line,
   ComposedChart,
   ScatterChart, Scatter, ZAxis,
   RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis
@@ -74,6 +68,14 @@ interface UserInfo {
   email: string;
   name: string;
 }
+
+// Fallback platform distribution data
+const platformDistribution: PlatformSpendData[] = [
+  { platform: 'Meta', spend: 45300, percentage: 36.5, color: '#00C2B3' },
+  { platform: 'Google', spend: 38900, percentage: 31.3, color: '#4A90E2' },
+  { platform: 'TikTok', spend: 24700, percentage: 19.9, color: '#FF6B6B' },
+  { platform: 'LinkedIn', spend: 15400, percentage: 12.4, color: '#FFD166' },
+];
 
 const AdSurveillance = () => {
   const [summaryData, setSummaryData] = useState<SummaryMetrics | null>(null);
@@ -124,15 +126,6 @@ const AdSurveillance = () => {
   
   const [analyticsLoading, setAnalyticsLoading] = useState(false);
   const [activeChart, setActiveChart] = useState('competitorSpend');
-  
-  // Chart data state
-  const [spendTrendData, setSpendTrendData] = useState<number[]>([56000, 55000, 51000, 57000, 56000, 56000, 56000]);
-  const [platformDistribution, setPlatformDistribution] = useState<PlatformSpendData[]>([
-    { platform: 'Meta', spend: 45300, percentage: 36.5, color: '#00C2B3' },
-    { platform: 'Google', spend: 38900, percentage: 31.3, color: '#4A90E2' },
-    { platform: 'TikTok', spend: 24700, percentage: 19.9, color: '#FF6B6B' },
-    { platform: 'LinkedIn', spend: 15400, percentage: 12.4, color: '#FFD166' },
-  ]);
 
   // Check authentication and load user info
   useEffect(() => {
@@ -1075,6 +1068,7 @@ const AdSurveillance = () => {
                         formatter={(value: any, name: string) => {
                           if (name === 'ad_count') return [value, 'Number of Ads'];
                           if (name === 'total_spend') return [formatCurrencyShort(value), 'Total Spend'];
+                          if (name === 'avg_ctr') return [formatCTR(value), 'Average CTR'];
                           return [value, name];
                         }}
                       />
@@ -1123,7 +1117,7 @@ const AdSurveillance = () => {
                         cx="50%"
                         cy="50%"
                         labelLine={false}
-                        label={({ ctr_performance, percentage }) => `${ctr_performance}: ${percentage.toFixed(1)}%`}
+                        label={({ ctr_performance, percentage }: any) => `${ctr_performance}: ${percentage.toFixed(1)}%`}
                         outerRadius={80}
                         fill="#8884d8"
                         dataKey="percentage"
@@ -1134,7 +1128,7 @@ const AdSurveillance = () => {
                           return <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />;
                         })}
                       </Pie>
-                      <Tooltip formatter={(value: any) => [`${value}%`, 'Percentage']} />
+                      <Tooltip formatter={(value: number) => [`${value}%`, 'Percentage']} />
                       <Legend />
                     </PieChart>
                   </ResponsiveContainer>
@@ -1204,7 +1198,10 @@ const AdSurveillance = () => {
                           if (name === 'avg_ctr') return [formatCTR(value), 'Avg CTR'];
                           return [value, name];
                         }}
-                        labelFormatter={(label) => `Competitor: ${label}`}
+                        labelFormatter={(label, payload) => {
+                          const item = payload?.[0]?.payload;
+                          return item ? `Competitor: ${item.competitor_name}` : label;
+                        }}
                       />
                       <Legend />
                       <Scatter 
