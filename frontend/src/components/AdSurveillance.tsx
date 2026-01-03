@@ -25,7 +25,7 @@ import {
   PieChart as PieChartIcon,
   BarChart as BarChartIcon,
   LineChart as LineChartIcon,
-  Radar,
+  Radar as RadarIcon, // Renamed
   User
 } from 'lucide-react';
 import { 
@@ -51,9 +51,9 @@ import { addCompetitor, type NewCompetitorInput } from '../services/competitors'
 import {
   BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer,
   PieChart, Pie, Cell,
-  ComposedChart,
+  ComposedChart, Line,
   ScatterChart, Scatter, ZAxis,
-  RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis
+  RadarChart, PolarGrid, PolarAngleAxis, PolarRadiusAxis, Radar
 } from 'recharts';
 
 interface PlatformSpendData {
@@ -964,7 +964,7 @@ const AdSurveillance = () => {
               { id: 'spendRanges', label: 'Spend Ranges', icon: <PieChartIcon className="w-4 h-4" /> },
               { id: 'ctrPerformance', label: 'CTR Performance', icon: <Target className="w-4 h-4" /> },
               { id: 'spendImpressions', label: 'Efficiency', icon: <LineChartIcon className="w-4 h-4" /> },
-              { id: 'platformCTR', label: 'Platform CTR', icon: <Radar className="w-4 h-4" /> }
+              { id: 'platformCTR', label: 'Platform CTR', icon: <RadarIcon className="w-4 h-4" /> }
             ].map((chart) => (
               <button
                 key={chart.id}
@@ -1029,7 +1029,7 @@ const AdSurveillance = () => {
                         fill="#4F46E5"
                         radius={[0, 4, 4, 0]}
                       >
-                        {analyticsData.competitorSpend.map((index) => (
+                        {analyticsData.competitorSpend.map((_, index) => (
                           <Cell key={`cell-${index}`} fill={`hsl(${index * 40}, 70%, 60%)`} />
                         ))}
                       </Bar>
@@ -1065,7 +1065,8 @@ const AdSurveillance = () => {
                       <YAxis yAxisId="left" />
                       <YAxis yAxisId="right" orientation="right" />
                       <Tooltip 
-                        formatter={(value: any, name: string) => {
+                        formatter={(value: any, name: string | undefined) => {
+                          if (!name) return [value, ''];
                           if (name === 'ad_count') return [value, 'Number of Ads'];
                           if (name === 'total_spend') return [formatCurrencyShort(value), 'Total Spend'];
                           if (name === 'avg_ctr') return [formatCTR(value), 'Average CTR'];
@@ -1113,7 +1114,7 @@ const AdSurveillance = () => {
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart>
                       <Pie
-                        data={analyticsData.ctrPerformance}
+                        data={analyticsData.ctrPerformance as any[]}
                         cx="50%"
                         cy="50%"
                         labelLine={false}
@@ -1123,12 +1124,17 @@ const AdSurveillance = () => {
                         dataKey="percentage"
                         nameKey="ctr_performance"
                       >
-                        {analyticsData.ctrPerformance.map((entry, index) => {
+                        {analyticsData.ctrPerformance.map((_, index) => {
                           const colors = ['#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6'];
                           return <Cell key={`cell-${index}`} fill={colors[index % colors.length]} />;
                         })}
                       </Pie>
-                      <Tooltip formatter={(value: number) => [`${value}%`, 'Percentage']} />
+                      <Tooltip 
+                        formatter={(value: number | undefined) => {
+                          if (value === undefined) return ['0%', 'Percentage'];
+                          return [`${value}%`, 'Percentage'];
+                        }}
+                      />
                       <Legend />
                     </PieChart>
                   </ResponsiveContainer>
@@ -1192,7 +1198,8 @@ const AdSurveillance = () => {
                         name="Avg CTR"
                       />
                       <Tooltip 
-                        formatter={(value: any, name: string) => {
+                        formatter={(value: any, name: string | undefined) => {
+                          if (!name) return [value, ''];
                           if (name === 'total_spend') return [formatCurrencyShort(value), 'Total Spend'];
                           if (name === 'impressions_per_dollar') return [value.toLocaleString(), 'Impressions/$'];
                           if (name === 'avg_ctr') return [formatCTR(value), 'Avg CTR'];
