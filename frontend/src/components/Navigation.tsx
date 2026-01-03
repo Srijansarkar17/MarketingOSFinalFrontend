@@ -22,6 +22,7 @@ const Navigation: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [userName, setUserName] = useState<string | null>(null);
+  const [selectedNavIndex, setSelectedNavIndex] = useState<number>(0);
 
   // Check login status from localStorage
   useEffect(() => {
@@ -63,7 +64,7 @@ const Navigation: React.FC = () => {
     };
   }, []);
 
-  const navItems = [
+  const navItems: NavItem[] = [
     { name: 'Home', link: '/home' },
     { name: 'Command Center', link: '/command-center' },
     { name: 'Targeting Intel', link: '/targeting_intel' },
@@ -77,12 +78,17 @@ const Navigation: React.FC = () => {
     setIsMobileMenuOpen(false);
   };
 
-  // Create a handler for NavItems component that takes an index parameter
-  const handleNavItemClick = (index: number) => {
-    const item = navItems[index];
+  // Handle navigation item selection
+  const handleNavSelection = () => {
+    const currentIndex = selectedNavIndex;
+    const item = navItems[currentIndex];
     if (item) {
       navigate(item.link);
     }
+    
+    // Cycle to next item for next click (if needed)
+    // Or you could remove this if NavItems handles selection internally
+    setSelectedNavIndex((prev) => (prev + 1) % navItems.length);
   };
 
   const handleLogout = () => {
@@ -107,7 +113,7 @@ const Navigation: React.FC = () => {
         {isLoggedIn && (
           <NavItems 
             items={navItems} 
-            onItemClick={handleNavItemClick}
+            onItemClick={handleNavSelection}
           />
         )}
         <div className="flex items-center gap-4">

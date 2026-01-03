@@ -1,9 +1,22 @@
 import React, { useState } from 'react';
 import { ChevronRight, Sparkles, Briefcase, Target } from 'lucide-react';
 
+interface Question {
+  id: 'businessType' | 'industry' | 'goals';
+  question: string;
+  icon: React.ComponentType<{ className?: string }>;
+  options: string[];
+}
+
+interface Answers {
+  businessType: string;
+  industry: string;
+  goals: string;
+}
+
 const OnboardingPage = () => {
   const [currentStep, setCurrentStep] = useState(0);
-  const [answers, setAnswers] = useState({
+  const [answers, setAnswers] = useState<Answers>({
     businessType: '',
     industry: '',
     goals: ''
@@ -12,7 +25,7 @@ const OnboardingPage = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
-  const questions = [
+  const questions: Question[] = [
     {
       id: 'businessType',
       question: "What type of marketing business do you run?",
@@ -65,7 +78,7 @@ const OnboardingPage = () => {
   const Icon = currentQuestion?.icon;
   const progress = ((currentStep + 1) / questions.length) * 100;
 
-  const handleOptionSelect = (option) => {
+  const handleOptionSelect = (option: string) => {
     const currentQuestionId = currentQuestion?.id;
     if (!currentQuestionId) return;
     
@@ -184,7 +197,7 @@ const OnboardingPage = () => {
           <div className="space-y-3 mb-8">
             {currentQuestion?.options.map((option, index) => {
               const currentQuestionId = currentQuestion?.id;
-              const isSelected = answers[currentQuestionId] === option;
+              const isSelected = currentQuestionId ? answers[currentQuestionId] === option : false;
               return (
                 <button
                   key={index}
