@@ -10,16 +10,21 @@ import BudgetTestingStep from '../components/auto-create/BudgetTestingStep';
 
 export type CampaignGoal = 'awareness' | 'consideration' | 'conversions' | 'retention' | null;
 
+interface StepComponentProps {
+  selectedGoal: CampaignGoal;
+  setSelectedGoal?: React.Dispatch<React.SetStateAction<CampaignGoal>>; // Updated type
+}
+
 const AutoCreate: React.FC = () => {
   const [currentStep, setCurrentStep] = useState(0);
   const [selectedGoal, setSelectedGoal] = useState<CampaignGoal>(null);
 
   const steps = [
-    { id: 'goal', label: 'Campaign Goal', component: CampaignGoalStep },
-    { id: 'creative', label: 'Creative Assets', component: CreativeAssetsStep },
-    { id: 'copy', label: 'Copy & Messaging', component: CopyMessagingStep },
-    { id: 'audience', label: 'Audience', component: AudienceStep },
-    { id: 'budget', label: 'Budget & Testing', component: BudgetTestingStep }
+    { id: 'goal', label: 'Campaign Goal', component: CampaignGoalStep as React.FC<StepComponentProps> },
+    { id: 'creative', label: 'Creative Assets', component: CreativeAssetsStep as React.FC<StepComponentProps> },
+    { id: 'copy', label: 'Copy & Messaging', component: CopyMessagingStep as React.FC<StepComponentProps> },
+    { id: 'audience', label: 'Audience', component: AudienceStep as React.FC<StepComponentProps> },
+    { id: 'budget', label: 'Budget & Testing', component: BudgetTestingStep as React.FC<StepComponentProps> }
   ];
 
   const CurrentStepComponent = steps[currentStep].component;

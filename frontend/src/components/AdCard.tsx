@@ -13,13 +13,18 @@ interface AdCardProps {
     tags: string[];
     genre?: string;
   };
+  onClick?: () => void; // Move onClick outside of the ad object
 }
 
-const AdCard: React.FC<AdCardProps> = ({ ad }) => {
+const AdCard: React.FC<AdCardProps> = ({ ad, onClick }) => {
   const navigate = useNavigate();
 
   const handleClick = () => {
-    navigate(`/ads/${ad.id}`);
+    if (onClick) {
+      onClick(); // Use the passed onClick prop if it exists
+    } else {
+      navigate(`/ads/${ad.id}`); // Fallback to navigation
+    }
   };
 
   return (
