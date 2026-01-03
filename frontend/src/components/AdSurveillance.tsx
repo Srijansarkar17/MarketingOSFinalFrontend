@@ -1029,7 +1029,7 @@ const AdSurveillance = () => {
                         fill="#4F46E5"
                         radius={[0, 4, 4, 0]}
                       >
-                        {analyticsData.competitorSpend.map((entry, index) => (
+                        {analyticsData.competitorSpend.map((index) => (
                           <Cell key={`cell-${index}`} fill={`hsl(${index * 40}, 70%, 60%)`} />
                         ))}
                       </Bar>
