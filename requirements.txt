@@ -1,9 +1,0 @@
-Flask
-flask-cors
-flask-socketio
-python-dotenv
-Pillow
-torch
-diffusers
-transformers
-accelerate
