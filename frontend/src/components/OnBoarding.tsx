@@ -1,10 +1,10 @@
-import React, { useState } from 'react';
-import { ChevronRight, Sparkles, Briefcase, Target } from 'lucide-react';
+import { useState } from 'react';
+import { ChevronRight, Sparkles, Briefcase, Target, LucideIcon } from 'lucide-react';
 
 interface Question {
   id: 'businessType' | 'industry' | 'goals';
   question: string;
-  icon: React.ComponentType<{ className?: string }>;
+  icon: LucideIcon;
   options: string[];
 }
 

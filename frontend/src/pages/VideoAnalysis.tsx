@@ -1,14 +1,11 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, ReactNode } from 'react';
 import { 
   Play, 
-  Pause, 
-  Volume2, 
   Eye, 
   Palette, 
   Users, 
   MessageSquare, 
   Target, 
-  BarChart3,
   Heart,
   Shield,
   Clock,
@@ -19,13 +16,89 @@ import {
   Loader2,
   LucideIcon
 } from 'lucide-react';
-import {
-  AnalysisResponse,
-  RecentAnalysis,
-  ColorPaletteItem,
-  EmotionalTriggers,
-  RecentAnalysesResponse
-} from '../types/video-analysis';
+
+// Define the types locally since module is missing
+interface ColorPaletteItem {
+  hex: string;
+  ratio: number;
+}
+
+interface EmotionalTriggers {
+  excitement?: number;
+  trust?: number;
+  urgency?: number;
+  curiosity?: number;
+  desire?: number;
+  fear?: number;
+  hope?: number;
+  [key: string]: number | undefined;
+}
+
+interface TranscriptSegment {
+  start?: number;
+  end?: number;
+  text: string;
+}
+
+interface Transcript {
+  text: string;
+  segments?: TranscriptSegment[];
+}
+
+interface FaceDetection {
+  unique_people_count: number;
+  max_faces_in_single_frame: number;
+  frames_with_faces: number;
+}
+
+interface ViewerAgeEstimate {
+  min: number;
+  max: number;
+  confidence: number;
+  reason: string;
+}
+
+interface CreativeReport {
+  overall_score?: number;
+  opening_hook?: {
+    strength_score: number;
+  };
+  copy_quality_score?: number;
+  visual_analysis?: {
+    visual_impact_score: number;
+  };
+  pacing?: {
+    pacing_score: number;
+  };
+  emotional_triggers?: EmotionalTriggers;
+  viewer_age_estimate?: ViewerAgeEstimate;
+}
+
+interface RawAnalysis {
+  transcript?: Transcript;
+  color_palette?: ColorPaletteItem[];
+  face_detection?: FaceDetection;
+}
+
+interface AnalysisResponse {
+  success: boolean;
+  error?: string;
+  analysis_id: string;
+  file_type: 'video' | 'image';
+  raw_analysis?: RawAnalysis;
+  creative_report?: CreativeReport;
+}
+
+interface RecentAnalysis {
+  id: string;
+  file_type: 'video' | 'image';
+  created_at: string;
+}
+
+interface RecentAnalysesResponse {
+  success: boolean;
+  analyses?: RecentAnalysis[];
+}
 
 const colors = {
   primary: {
@@ -167,7 +240,7 @@ const VideoAnalysis: React.FC = () => {
     }
   };
 
-  const renderColorPalette = (palette: ColorPaletteItem[]): JSX.Element | null => {
+  const renderColorPalette = (palette: ColorPaletteItem[]): ReactNode | null => {
     if (!palette || !Array.isArray(palette)) return null;
     
     return (
@@ -187,7 +260,7 @@ const VideoAnalysis: React.FC = () => {
     );
   };
 
-  const renderEmotionalTriggers = (triggers: EmotionalTriggers): JSX.Element | null => {
+  const renderEmotionalTriggers = (triggers: EmotionalTriggers): ReactNode | null => {
     if (!triggers) return null;
     
     const emotions: EmotionItem[] = [
@@ -234,7 +307,7 @@ const VideoAnalysis: React.FC = () => {
     score: number, 
     maxScore: number = 100, 
     icon?: LucideIcon
-  ): JSX.Element => {
+  ): ReactNode => {
     const Icon = icon;
     const percentage = (score / maxScore) * 100;
     let colorClass = 'text-emerald-600 bg-emerald-50';
@@ -425,7 +498,7 @@ const VideoAnalysis: React.FC = () => {
                     </div>
                     {analysis.raw_analysis.transcript.segments && (
                       <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {analysis.raw_analysis.transcript.segments.slice(0, 4).map((segment, idx) => (
+                        {analysis.raw_analysis.transcript.segments.slice(0, 4).map((segment: TranscriptSegment, idx: number) => (
                           <div key={idx} className="p-3 bg-slate-50 rounded-lg border border-slate-200">
                             <div className="text-sm text-cyan-600 font-medium">
                               {segment.start?.toFixed(1)}s - {segment.end?.toFixed(1)}s
