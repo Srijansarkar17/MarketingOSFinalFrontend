@@ -15,7 +15,7 @@ interface StepIndicatorProps {
 }
 
 const StepIndicator: React.FC<StepIndicatorProps> = ({ steps, currentStep, onStepClick, selectedGoal }) => {
-  const getStepIcon = (step: Step, index: number) => {
+  const getStepIcon = (step: Step) => {
     const icons: { [key: string]: string } = {
       goal: '🎯',
       creative: '🖼️',
@@ -47,7 +47,7 @@ const StepIndicator: React.FC<StepIndicatorProps> = ({ steps, currentStep, onSte
                     : 'bg-slate-50 text-slate-400 border border-slate-200'
                 } ${isClickable ? 'cursor-pointer hover:scale-105' : 'cursor-not-allowed'}`}
               >
-                <span className="text-2xl">{getStepIcon(step, index)}</span>
+                <span className="text-2xl">{getStepIcon(step)}</span>
                 <span className="font-semibold hidden md:block">{step.label}</span>
                 {isCompleted && !isActive && (
                   <Check className="w-5 h-5 text-emerald-600" />

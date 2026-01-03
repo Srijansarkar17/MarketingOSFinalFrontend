@@ -50,7 +50,8 @@ const CreativeAssetsStep: React.FC<CreativeAssetsStepProps> = ({ selectedGoal })
       'retention': 'Loyalty building, customer success story, product benefits showcase, long-term value, retention-focused',
       'lead': 'Lead generation focused, information gathering, valuable offer presentation, B2B oriented, professional',
     };
-    return prompts[goal || 'awareness'] || 'Professional product advertisement, high quality, commercial photography';
+    // Provide a default value when goal is null
+    return prompts[goal || 'awareness'];
   };
 
   const recommendations = [
@@ -70,9 +71,9 @@ const CreativeAssetsStep: React.FC<CreativeAssetsStepProps> = ({ selectedGoal })
     try {
       setUploading(true);
       const base64Data = imageDataUrl.split(',')[1];
-      
+
       const token = localStorage.getItem('token') || sessionStorage.getItem('token');
-      
+
       const response = await fetch(`${API_BASE_URL}/api/upload-image`, {
         method: 'POST',
         headers: {
@@ -90,9 +91,9 @@ const CreativeAssetsStep: React.FC<CreativeAssetsStepProps> = ({ selectedGoal })
           }
         })
       });
-      
+
       const data = await response.json();
-      
+
       if (data.success) {
         console.log('Image uploaded successfully:', data.image_url);
         // Store the response including campaign_id
@@ -111,13 +112,13 @@ const CreativeAssetsStep: React.FC<CreativeAssetsStepProps> = ({ selectedGoal })
     const file = event.target.files?.[0];
     if (file) {
       setUploadedFile(file);
-      
+
       // Create preview
       const reader = new FileReader();
       reader.onload = async (e) => {
         const result = e.target?.result as string;
         setUploadedImage(result);
-        
+
         // Upload to backend
         await uploadImageToBackend(file, result);
       };
@@ -127,10 +128,10 @@ const CreativeAssetsStep: React.FC<CreativeAssetsStepProps> = ({ selectedGoal })
 
   const handleGenerateAssets = async () => {
     if (!uploadedImage || !uploadedFile) return;
-    
+
     setIsGenerating(true);
     setGenerationProgress(0);
-    
+
     // Simulate progress while calling API
     const progressInterval = setInterval(() => {
       setGenerationProgress(prev => {
@@ -141,12 +142,12 @@ const CreativeAssetsStep: React.FC<CreativeAssetsStepProps> = ({ selectedGoal })
         return prev + 5;
       });
     }, 100);
-    
+
     try {
       // Get token
       const token = localStorage.getItem('token') || sessionStorage.getItem('token');
       const campaignId = localStorage.getItem('campaign_id');
-      
+
       const response = await fetch(`${API_BASE_URL}/api/generate-assets`, {
         method: 'POST',
         headers: {
@@ -155,16 +156,16 @@ const CreativeAssetsStep: React.FC<CreativeAssetsStepProps> = ({ selectedGoal })
         body: JSON.stringify({
           user_id: token,
           image_url: uploadedImage,
-          campaign_goal: selectedGoal || 'awareness', // Fixed: Provide default value
+          campaign_goal: selectedGoal || 'awareness',
           campaign_id: campaignId
         })
       });
-      
+
       const data = await response.json();
-      
+
       clearInterval(progressInterval);
       setGenerationProgress(100);
-      
+
       if (data.success) {
         // Update with real generated assets from backend
         const backendAssets = data.assets.map((asset: any, index: number) => ({
@@ -172,11 +173,11 @@ const CreativeAssetsStep: React.FC<CreativeAssetsStepProps> = ({ selectedGoal })
           image: asset.image_url,
           id: index + 1
         }));
-        
+
         setGeneratedAssets(backendAssets);
         setHasGenerated(true);
         setCurrentPrompt(backendAssets[0]?.prompt || '');
-        
+
         // Store campaign_id if returned
         if (data.campaign_id) {
           localStorage.setItem('campaign_id', data.campaign_id);
@@ -198,7 +199,7 @@ const CreativeAssetsStep: React.FC<CreativeAssetsStepProps> = ({ selectedGoal })
   const generateDummyData = () => {
     const prompt = getPromptForGoal(selectedGoal);
     setCurrentPrompt(prompt);
-    
+
     // Create dummy generated assets (fallback)
     const dummyGeneratedAssets: GeneratedImage[] = [
       {
@@ -250,7 +251,7 @@ const CreativeAssetsStep: React.FC<CreativeAssetsStepProps> = ({ selectedGoal })
         type: 'AI Generated'
       }
     ];
-    
+
     setGeneratedAssets(dummyGeneratedAssets);
     setHasGenerated(true);
   };
@@ -267,24 +268,24 @@ const CreativeAssetsStep: React.FC<CreativeAssetsStepProps> = ({ selectedGoal })
           score: asset.score,
           type: asset.type
         }));
-      
+
       if (selectedAssetsData.length === 0) {
         alert('Please select at least one asset');
         return;
       }
-      
-      const token = localStorage.getItem('token') || 
-                    sessionStorage.getItem('token') || 
-                    localStorage.getItem('auth_token') ||
-                    sessionStorage.getItem('auth_token');
-      
+
+      const token = localStorage.getItem('token') ||
+        sessionStorage.getItem('token') ||
+        localStorage.getItem('auth_token') ||
+        sessionStorage.getItem('auth_token');
+
       if (!token) {
         alert('Please login first');
         return;
       }
-      
+
       let campaignId = localStorage.getItem('campaign_id');
-      
+
       if (!campaignId) {
         const lastUploadResponse = localStorage.getItem('last_upload_response');
         if (lastUploadResponse) {
@@ -293,10 +294,10 @@ const CreativeAssetsStep: React.FC<CreativeAssetsStepProps> = ({ selectedGoal })
             campaignId = parsed.campaign_id;
           }
         }
-        
+
         if (!campaignId) {
           alert('No campaign found. Creating a new campaign...');
-          
+
           const createCampaignResponse = await fetch(`${API_BASE_URL}/api/create-campaign`, {
             method: 'POST',
             headers: {
@@ -304,22 +305,27 @@ const CreativeAssetsStep: React.FC<CreativeAssetsStepProps> = ({ selectedGoal })
             },
             body: JSON.stringify({
               user_id: token,
-              campaign_goal: selectedGoal || 'awareness' // Fixed: Provide default value
+              campaign_goal: selectedGoal || 'awareness'
             })
           });
-          
+
           const createData = await createCampaignResponse.json();
-          
+
           if (createData.success && createData.campaign_id) {
             campaignId = createData.campaign_id;
-            localStorage.setItem('campaign_id', campaignId);
+            if (createData.success && createData.campaign_id) {
+              campaignId = createData.campaign_id;
+              if (campaignId) {
+                localStorage.setItem('campaign_id', campaignId);
+              }
+            }
           } else {
             alert('Failed to create campaign. Please try uploading an image first.');
             return;
           }
         }
       }
-      
+
       const response = await fetch(`${API_BASE_URL}/api/save-selected-assets`, {
         method: 'POST',
         headers: {
@@ -331,9 +337,9 @@ const CreativeAssetsStep: React.FC<CreativeAssetsStepProps> = ({ selectedGoal })
           campaign_id: campaignId
         })
       });
-      
+
       const data = await response.json();
-      
+
       if (data.success) {
         alert(`${selectedAssetsData.length} assets saved successfully!`);
       } else {
@@ -363,7 +369,7 @@ const CreativeAssetsStep: React.FC<CreativeAssetsStepProps> = ({ selectedGoal })
   const handleDrop = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    
+
     const file = e.dataTransfer.files?.[0];
     if (file && file.type.startsWith('image/')) {
       setUploadedFile(file);
@@ -392,7 +398,7 @@ const CreativeAssetsStep: React.FC<CreativeAssetsStepProps> = ({ selectedGoal })
       {/* Product Image Upload Section */}
       <div className="mb-12">
         <h2 className="text-3xl font-bold text-slate-800 mb-6">Upload Your Product Image</h2>
-        
+
         <div className="bg-gradient-to-br from-slate-50 to-white rounded-2xl border-2 border-dashed border-slate-300 p-8">
           {!uploadedImage ? (
             <div
@@ -404,15 +410,15 @@ const CreativeAssetsStep: React.FC<CreativeAssetsStepProps> = ({ selectedGoal })
               <div className="w-24 h-24 rounded-full bg-gradient-to-r from-cyan-100 to-teal-100 flex items-center justify-center mb-6">
                 <Upload className="w-12 h-12 text-cyan-600" />
               </div>
-              
+
               <h3 className="text-2xl font-semibold text-slate-800 mb-2">
                 Upload Product Image
               </h3>
-              
+
               <p className="text-slate-600 text-center mb-6 max-w-md">
                 Upload a clear image of your product. Our AI will generate creative assets based on your product.
               </p>
-              
+
               <div className="flex items-center gap-4 mb-6">
                 <div className="flex items-center gap-2">
                   <Camera className="w-5 h-5 text-slate-500" />
@@ -423,18 +429,18 @@ const CreativeAssetsStep: React.FC<CreativeAssetsStepProps> = ({ selectedGoal })
                   <span className="text-slate-600">PNG, JPG, WebP</span>
                 </div>
               </div>
-              
-              <button 
+
+              <button
                 className="px-8 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-teal-600 text-white font-semibold hover:from-cyan-600 hover:to-teal-700 transition-all shadow-md"
                 disabled={uploading}
               >
                 {uploading ? 'Uploading...' : 'Choose Image'}
               </button>
-              
+
               <p className="mt-4 text-slate-500 text-sm">
                 or drag and drop your image here
               </p>
-              
+
               <input
                 ref={fileInputRef}
                 type="file"
@@ -456,7 +462,7 @@ const CreativeAssetsStep: React.FC<CreativeAssetsStepProps> = ({ selectedGoal })
                       className="w-full h-full object-cover"
                     />
                   </div>
-                  
+
                   <button
                     onClick={handleRemoveImage}
                     className="absolute top-4 right-4 w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center hover:bg-white transition-colors shadow-md"
@@ -465,13 +471,13 @@ const CreativeAssetsStep: React.FC<CreativeAssetsStepProps> = ({ selectedGoal })
                     <X className="w-5 h-5 text-slate-700" />
                   </button>
                 </div>
-                
+
                 {/* Upload Details */}
                 <div className="flex-1">
                   <h3 className="text-xl font-bold text-slate-800 mb-4">
                     Product Image Uploaded Successfully!
                   </h3>
-                  
+
                   {selectedGoal && (
                     <div className="mb-4 p-4 bg-blue-50 rounded-xl border border-blue-200">
                       <p className="text-blue-800 font-medium">
@@ -482,7 +488,7 @@ const CreativeAssetsStep: React.FC<CreativeAssetsStepProps> = ({ selectedGoal })
                       </p>
                     </div>
                   )}
-                  
+
                   <div className="space-y-4 mb-6">
                     <div className="flex items-center justify-between p-4 bg-slate-50 rounded-xl">
                       <span className="text-slate-600">Image Status</span>
@@ -490,7 +496,7 @@ const CreativeAssetsStep: React.FC<CreativeAssetsStepProps> = ({ selectedGoal })
                         {uploading ? 'Uploading...' : 'Ready for AI Processing'}
                       </span>
                     </div>
-                    
+
                     <div className="grid grid-cols-2 gap-4">
                       <div className="p-4 bg-slate-50 rounded-xl">
                         <p className="text-slate-600 text-sm mb-1">AI Model</p>
@@ -509,7 +515,7 @@ const CreativeAssetsStep: React.FC<CreativeAssetsStepProps> = ({ selectedGoal })
                           <span>{generationProgress}%</span>
                         </div>
                         <div className="w-full bg-slate-200 rounded-full h-2.5">
-                          <div 
+                          <div
                             className="bg-gradient-to-r from-cyan-500 to-teal-600 h-2.5 rounded-full transition-all duration-300"
                             style={{ width: `${generationProgress}%` }}
                           />
@@ -517,7 +523,7 @@ const CreativeAssetsStep: React.FC<CreativeAssetsStepProps> = ({ selectedGoal })
                       </div>
                     )}
                   </div>
-                  
+
                   <div className="flex gap-4">
                     <button
                       onClick={handleGenerateAssets}
@@ -536,7 +542,7 @@ const CreativeAssetsStep: React.FC<CreativeAssetsStepProps> = ({ selectedGoal })
                         </>
                       )}
                     </button>
-                    
+
                     <button
                       onClick={() => fileInputRef.current?.click()}
                       disabled={isGenerating || uploading}
@@ -567,7 +573,7 @@ const CreativeAssetsStep: React.FC<CreativeAssetsStepProps> = ({ selectedGoal })
                 </span>
               </div>
             </div>
-            <button 
+            <button
               onClick={handleGenerateAssets}
               disabled={isGenerating}
               className="flex items-center gap-2 px-6 py-3 rounded-xl bg-gradient-to-r from-cyan-500 to-teal-600 text-white font-semibold hover:from-cyan-600 hover:to-teal-700 transition-all shadow-md disabled:opacity-50"
@@ -590,7 +596,7 @@ const CreativeAssetsStep: React.FC<CreativeAssetsStepProps> = ({ selectedGoal })
                     alt={asset.title}
                     className="w-full h-full object-cover"
                   />
-                  
+
                   <div className="absolute top-4 right-4 px-3 py-1.5 rounded-full bg-emerald-500 text-white text-sm font-bold">
                     Score: {asset.score}
                   </div>
@@ -599,28 +605,26 @@ const CreativeAssetsStep: React.FC<CreativeAssetsStepProps> = ({ selectedGoal })
                     <div className="absolute bottom-4 left-4 right-4 flex gap-2">
                       <button
                         onClick={() => toggleAsset(asset.id)}
-                        className={`flex-1 py-2 rounded-lg font-semibold transition-all ${
-                          selectedAssets.includes(asset.id)
+                        className={`flex-1 py-2 rounded-lg font-semibold transition-all ${selectedAssets.includes(asset.id)
                             ? 'bg-cyan-600 text-white'
                             : 'bg-white/90 text-slate-900 hover:bg-white'
-                        }`}
+                          }`}
                       >
                         {selectedAssets.includes(asset.id) ? 'Selected ✓' : 'Select'}
                       </button>
-                      <button 
-                        onClick={() => downloadAsset(asset.image, asset.title)}
+                      <button
+                        onClick={() => downloadAsset(asset.image)}
                         className="w-10 h-10 rounded-lg bg-white/90 hover:bg-white flex items-center justify-center transition-colors"
                         title="View Full Size"
                       >
                         <Download className="w-5 h-5 text-slate-900" />
                       </button>
-                      <button 
+                      <button
                         onClick={() => toggleAsset(asset.id)}
-                        className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${
-                          selectedAssets.includes(asset.id)
+                        className={`w-10 h-10 rounded-lg flex items-center justify-center transition-colors ${selectedAssets.includes(asset.id)
                             ? 'bg-red-100 text-red-600 hover:bg-red-200'
                             : 'bg-white/90 text-slate-900 hover:bg-white'
-                        }`}
+                          }`}
                         title="Add to Favorites"
                       >
                         <Heart className={`w-5 h-5 ${selectedAssets.includes(asset.id) ? 'fill-current' : ''}`} />
@@ -663,7 +667,7 @@ const CreativeAssetsStep: React.FC<CreativeAssetsStepProps> = ({ selectedGoal })
                     Ready to use in your campaign. You can download or proceed to next step.
                   </p>
                 </div>
-                <button 
+                <button
                   onClick={saveSelectedAssets}
                   className="px-6 py-3 bg-gradient-to-r from-cyan-600 to-teal-700 text-white font-semibold rounded-lg hover:from-cyan-700 hover:to-teal-800 transition-all"
                 >
@@ -681,7 +685,7 @@ const CreativeAssetsStep: React.FC<CreativeAssetsStepProps> = ({ selectedGoal })
                 Based on your goal: {selectedGoal || 'Brand Awareness'}
               </span>
             </div>
-            
+
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
               {recommendations.map((rec, index) => (
                 <div key={index} className="bg-slate-50 rounded-xl p-6 border border-slate-200 hover:border-slate-300 transition-colors">
