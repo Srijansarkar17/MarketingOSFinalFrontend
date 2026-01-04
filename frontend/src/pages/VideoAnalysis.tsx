@@ -1,660 +1,579 @@
-import React, { useState, useEffect, ReactNode } from 'react';
-import { 
-  Play, 
-  Eye, 
-  Palette, 
-  Users, 
-  MessageSquare, 
-  Target, 
-  Heart,
-  Shield,
-  Clock,
-  Zap,
-  Sparkles,
-  AlertCircle,
-  CheckCircle,
-  Loader2,
-  LucideIcon
-} from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { Search, Filter, TrendingUp, Eye, ExternalLink, X, RefreshCw, BarChart3 } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
-// Define the types locally since module is missing
-interface ColorPaletteItem {
-  hex: string;
-  ratio: number;
-}
-
-interface EmotionalTriggers {
-  excitement?: number;
-  trust?: number;
-  urgency?: number;
-  curiosity?: number;
-  desire?: number;
-  fear?: number;
-  hope?: number;
-  [key: string]: number | undefined;
-}
-
-interface TranscriptSegment {
-  start?: number;
-  end?: number;
-  text: string;
-}
-
-interface Transcript {
-  text: string;
-  segments?: TranscriptSegment[];
-}
-
-interface FaceDetection {
-  unique_people_count: number;
-  max_faces_in_single_frame: number;
-  frames_with_faces: number;
-}
-
-interface ViewerAgeEstimate {
-  min: number;
-  max: number;
-  confidence: number;
-  reason: string;
-}
-
-interface CreativeReport {
-  overall_score?: number;
-  opening_hook?: {
-    strength_score: number;
+interface Ad {
+  id: number;
+  search_keyword: string;
+  company: string;
+  page_name: string;
+  ad_text: string;
+  ad_title: string;
+  call_to_action: string;
+  full_ad_text: string;
+  publisher_platform: string;
+  display_format: string;
+  link_url: string;
+  image_count: number;
+  video_count: number;
+  is_active: boolean;
+  total_active_time: number;
+  analysis: {
+    scores: {
+      total_score: number;
+      cta_score: number;
+      visual_score: number;
+      value_proposition_score: number;
+      text_quality_score: number;
+    };
+    value_proposition: {
+      benefits: string[];
+      urgency: boolean;
+    };
+    media_analysis: Array<{
+      media_type: string;
+      file: string;
+      colors: string[];
+      mood: string;
+      mood_score: number;
+      pacing?: {
+        scene_count: number;
+        avg_scene_duration: number;
+        hook_speed_sec: number;
+        pacing_score: number;
+        duration_sec: number;
+      };
+    }>;
   };
-  copy_quality_score?: number;
-  visual_analysis?: {
-    visual_impact_score: number;
-  };
-  pacing?: {
-    pacing_score: number;
-  };
-  emotional_triggers?: EmotionalTriggers;
-  viewer_age_estimate?: ViewerAgeEstimate;
-}
-
-interface RawAnalysis {
-  transcript?: Transcript;
-  color_palette?: ColorPaletteItem[];
-  face_detection?: FaceDetection;
-}
-
-interface AnalysisResponse {
-  success: boolean;
-  error?: string;
-  analysis_id: string;
-  file_type: 'video' | 'image';
-  raw_analysis?: RawAnalysis;
-  creative_report?: CreativeReport;
-}
-
-interface RecentAnalysis {
-  id: string;
-  file_type: 'video' | 'image';
-  created_at: string;
-}
-
-interface RecentAnalysesResponse {
-  success: boolean;
-  analyses?: RecentAnalysis[];
-}
-
-const colors = {
-  primary: {
-    50: 'bg-cyan-50',
-    100: 'bg-cyan-100',
-    500: 'bg-cyan-500',
-    600: 'bg-cyan-600',
-    700: 'bg-cyan-700',
-    text: 'text-cyan-700',
-    textLight: 'text-cyan-600',
-    textDark: 'text-cyan-800',
-    border: 'border-cyan-200',
-    borderHover: 'border-cyan-300',
-    hover: 'hover:bg-cyan-600',
-    gradient: 'from-cyan-500 to-teal-600'
-  },
-  accent: {
-    50: 'bg-emerald-50',
-    100: 'bg-emerald-100',
-    500: 'bg-emerald-500',
-    600: 'bg-emerald-600',
-    text: 'text-emerald-700',
-    border: 'border-emerald-200',
-    gradient: 'from-emerald-500 to-teal-600'
-  },
-  neutral: {
-    50: 'bg-slate-50',
-    100: 'bg-slate-100',
-    200: 'bg-slate-200',
-    400: 'bg-slate-400',
-    500: 'bg-slate-500',
-    600: 'bg-slate-600',
-    700: 'bg-slate-700',
-    800: 'bg-slate-800',
-    text: 'text-slate-700',
-    textLight: 'text-slate-500',
-    textDark: 'text-slate-800',
-    border: 'border-slate-200',
-    borderLight: 'border-slate-100',
-    hover: 'hover:bg-slate-50'
-  },
-  success: {
-    50: 'bg-emerald-50',
-    500: 'bg-emerald-500',
-    text: 'text-emerald-700',
-    border: 'border-emerald-200'
-  },
-  background: {
-    primary: 'bg-white',
-    secondary: 'bg-slate-50',
-    gradient: 'bg-gradient-to-br from-slate-50 via-cyan-50 to-teal-50',
-    card: 'bg-white',
-    hover: 'hover:bg-slate-50'
-  }
-};
-
-interface EmotionItem {
-  key: keyof EmotionalTriggers;
-  label: string;
-  icon: LucideIcon;
-  color: string;
 }
 
 const VideoAnalysis: React.FC = () => {
-  const [videoPath, setVideoPath] = useState<string>('');
-  const [isAnalyzing, setIsAnalyzing] = useState<boolean>(false);
-  const [analysis, setAnalysis] = useState<AnalysisResponse | null>(null);
-  const [recentAnalyses, setRecentAnalyses] = useState<RecentAnalysis[]>([]);
-  const [selectedAnalysis, setSelectedAnalysis] = useState<string | null>(null);
-  const [error, setError] = useState<string>('');
-  const [success, setSuccess] = useState<string>('');
+  const [ads, setAds] = useState<Ad[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState('');
+  const [selectedKeyword, setSelectedKeyword] = useState('all');
+  const [selectedAd, setSelectedAd] = useState<Ad | null>(null);
+  const [sortBy, setSortBy] = useState<'score' | 'active_time'>('score');
 
-  // Fetch recent analyses on component mount
   useEffect(() => {
-    fetchRecentAnalyses();
+    fetchAds();
   }, []);
 
-  const fetchRecentAnalyses = async (): Promise<void> => {
+  const fetchAds = async () => {
+    setLoading(true);
     try {
-      const response = await fetch('http://localhost:5000/api/recent-analyses');
-      const data: RecentAnalysesResponse = await response.json();
-      if (data.success && data.analyses) {
-        setRecentAnalyses(data.analyses);
-      }
+      const { data, error } = await supabase
+        .from('facebook_ads')
+        .select('*');
+
+      if (error) throw error;
+      setAds(data || []);
     } catch (error) {
-      console.error('Failed to fetch recent analyses:', error);
-    }
-  };
-
-  const handleAnalyze = async (): Promise<void> => {
-    if (!videoPath.trim()) {
-      setError('Please enter a video path');
-      return;
-    }
-
-    setIsAnalyzing(true);
-    setError('');
-    setSuccess('');
-
-    try {
-      const response = await fetch('http://localhost:5000/api/analyze', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ video_path: videoPath }),
-      });
-
-      const data: AnalysisResponse = await response.json();
-
-      if (data.success) {
-        setAnalysis(data);
-        setSuccess('Analysis completed successfully!');
-        fetchRecentAnalyses(); // Refresh recent analyses
-      } else {
-        setError(data.error || 'Analysis failed');
-      }
-    } catch (error) {
-      setError('Network error. Please check if the backend server is running.');
+      console.error('Error fetching ads:', error);
     } finally {
-      setIsAnalyzing(false);
+      setLoading(false);
     }
   };
 
-  const handleLoadAnalysis = async (analysisId: string): Promise<void> => {
-    try {
-      const response = await fetch(`http://localhost:5000/api/analysis/${analysisId}`);
-      const data: AnalysisResponse = await response.json();
-      
-      if (data.success) {
-        setAnalysis(data);
-        setSelectedAnalysis(analysisId);
-        setSuccess(`Loaded analysis: ${analysisId}`);
-      } else {
-        setError('Failed to load analysis');
+  const getScoreColor = (score: number): string => {
+    if (score >= 80) return 'text-emerald-400';
+    if (score >= 60) return 'text-amber-400';
+    return 'text-rose-400';
+  };
+
+  const getScoreGradient = (score: number): string => {
+    if (score >= 80) return 'from-emerald-500/20 to-emerald-500/5';
+    if (score >= 60) return 'from-amber-500/20 to-amber-500/5';
+    return 'from-rose-500/20 to-rose-500/5';
+  };
+
+  const filteredAds = ads
+    .filter((ad) => {
+      const matchesSearch =
+        ad.company.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        ad.ad_title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        ad.ad_text.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesKeyword =
+        selectedKeyword === 'all' || ad.search_keyword === selectedKeyword;
+      return matchesSearch && matchesKeyword;
+    })
+    .sort((a, b) => {
+      if (sortBy === 'score') {
+        return (b.analysis?.scores?.total_score || 0) - (a.analysis?.scores?.total_score || 0);
       }
-    } catch (error) {
-      setError('Failed to load analysis');
-    }
-  };
+      return b.total_active_time - a.total_active_time;
+    });
 
-  const renderColorPalette = (palette: ColorPaletteItem[]): ReactNode | null => {
-    if (!palette || !Array.isArray(palette)) return null;
-    
-    return (
-      <div className="flex flex-wrap gap-2">
-        {palette.map((color: ColorPaletteItem, index: number) => (
-          <div key={index} className="flex items-center gap-2">
-            <div 
-              className="w-8 h-8 rounded-lg border border-slate-200"
-              style={{ backgroundColor: color.hex }}
-            />
-            <span className="text-sm text-slate-600">
-              {color.hex} ({(color.ratio * 100).toFixed(1)}%)
-            </span>
-          </div>
-        ))}
-      </div>
-    );
-  };
-
-  const renderEmotionalTriggers = (triggers: EmotionalTriggers): ReactNode | null => {
-    if (!triggers) return null;
-    
-    const emotions: EmotionItem[] = [
-      { key: 'excitement', label: 'Excitement', icon: Zap, color: 'yellow' },
-      { key: 'trust', label: 'Trust', icon: Shield, color: 'blue' },
-      { key: 'urgency', label: 'Urgency', icon: Clock, color: 'red' },
-      { key: 'curiosity', label: 'Curiosity', icon: Eye, color: 'purple' },
-      { key: 'desire', label: 'Desire', icon: Heart, color: 'pink' },
-      { key: 'fear', label: 'Fear', icon: AlertCircle, color: 'orange' },
-      { key: 'hope', label: 'Hope', icon: Sparkles, color: 'green' },
-    ];
-    
-    return (
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        {emotions.map((emotion: EmotionItem) => {
-          const Icon = emotion.icon;
-          const value = triggers[emotion.key] || 0;
-          const colorClass = `text-${emotion.color}-500`;
-          
-          return (
-            <div key={emotion.key} className={`p-4 rounded-xl border ${colors.neutral.border} bg-white`}>
-              <div className="flex items-center gap-2 mb-2">
-                <Icon className={`w-5 h-5 ${colorClass}`} />
-                <span className="font-medium text-slate-700">{emotion.label}</span>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="flex-1 h-2 bg-slate-100 rounded-full overflow-hidden">
-                  <div 
-                    className={`h-full bg-gradient-to-r from-${emotion.color}-400 to-${emotion.color}-600 rounded-full`}
-                    style={{ width: `${value}%` }}
-                  />
-                </div>
-                <span className="text-sm font-bold text-slate-700">{value}%</span>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    );
-  };
-
-  const renderScoreCard = (
-    title: string, 
-    score: number, 
-    maxScore: number = 100, 
-    icon?: LucideIcon
-  ): ReactNode => {
-    const Icon = icon;
-    const percentage = (score / maxScore) * 100;
-    let colorClass = 'text-emerald-600 bg-emerald-50';
-    
-    if (percentage < 50) colorClass = 'text-red-600 bg-red-50';
-    else if (percentage < 75) colorClass = 'text-yellow-600 bg-yellow-50';
-    
-    return (
-      <div className="p-4 rounded-xl border border-slate-200 bg-white">
-        <div className="flex items-center justify-between mb-3">
-          <div className="flex items-center gap-2">
-            {Icon && <Icon className="w-5 h-5 text-slate-600" />}
-            <span className="font-medium text-slate-700">{title}</span>
-          </div>
-          <span className={`px-3 py-1 rounded-full text-sm font-bold ${colorClass}`}>
-            {score}/{maxScore}
-          </span>
-        </div>
-        <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
-          <div 
-            className={`h-full bg-gradient-to-r ${colors.primary.gradient} rounded-full`}
-            style={{ width: `${percentage}%` }}
-          />
-        </div>
-      </div>
-    );
-  };
+  const keywords = ['all', ...Array.from(new Set(ads.map((ad) => ad.search_keyword)))];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-cyan-50 to-teal-50 p-4 md:p-8">
-      <div className="max-w-7xl mx-auto">
-        {/* Header */}
-        <div className="mb-8">
-          <h1 className="text-3xl md:text-4xl font-bold text-slate-900 mb-2">
-            Video Analysis Dashboard
-          </h1>
-          <p className="text-slate-600">
-            Analyze video content for creative insights, emotional triggers, and audience targeting
-          </p>
-        </div>
-
-        {/* Main Content Grid */}
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          {/* Left Column - Controls & Recent Analyses */}
-          <div className="lg:col-span-1 space-y-6">
-            {/* Analysis Input */}
-            <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-6">
-              <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
-                <Target className="w-5 h-5" />
-                New Analysis
-              </h2>
-              
-              <div className="space-y-4">
+    <div className="min-h-screen bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 text-slate-100">
+      {/* Header */}
+      <header className="border-b border-slate-800/50 bg-slate-900/50 backdrop-blur-xl sticky top-0 z-40">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="flex flex-col gap-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-4">
+                <div className="p-3 bg-gradient-to-br from-violet-500 to-fuchsia-500 rounded-2xl shadow-lg shadow-violet-500/20">
+                  <BarChart3 className="w-7 h-7 text-white" />
+                </div>
                 <div>
-                  <label className="block text-sm font-medium text-slate-700 mb-2">
-                    Video/Image Path
-                  </label>
-                  <input
-                    type="text"
-                    value={videoPath}
-                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setVideoPath(e.target.value)}
-                    placeholder="e.g., /path/to/video.mp4"
-                    className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 text-slate-700"
-                  />
-                  <p className="text-sm text-slate-500 mt-2">
-                    Enter full path to video or image file
+                  <h1 className="text-3xl font-bold bg-gradient-to-r from-violet-400 via-fuchsia-400 to-pink-400 bg-clip-text text-transparent">
+                    Video Analysis Dashboard
+                  </h1>
+                  <p className="text-slate-400 text-sm mt-1">
+                    Performance insights & competitive intelligence
                   </p>
                 </div>
-
-                <button
-                  onClick={handleAnalyze}
-                  disabled={isAnalyzing}
-                  className={`w-full py-3 px-4 rounded-xl font-semibold transition-all flex items-center justify-center gap-2 ${
-                    isAnalyzing
-                      ? 'bg-slate-300 text-slate-500 cursor-not-allowed'
-                      : `bg-gradient-to-r ${colors.primary.gradient} text-white hover:shadow-lg hover:scale-[1.02]`
-                  }`}
-                >
-                  {isAnalyzing ? (
-                    <>
-                      <Loader2 className="w-5 h-5 animate-spin" />
-                      Analyzing...
-                    </>
-                  ) : (
-                    <>
-                      <Play className="w-5 h-5" />
-                      Start Analysis
-                    </>
-                  )}
-                </button>
               </div>
-
-              {/* Messages */}
-              {error && (
-                <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-xl flex items-start gap-3">
-                  <AlertCircle className="w-5 h-5 text-red-600 flex-shrink-0 mt-0.5" />
-                  <p className="text-red-700">{error}</p>
-                </div>
-              )}
-
-              {success && (
-                <div className="mt-4 p-4 bg-emerald-50 border border-emerald-200 rounded-xl flex items-start gap-3">
-                  <CheckCircle className="w-5 h-5 text-emerald-600 flex-shrink-0 mt-0.5" />
-                  <p className="text-emerald-700">{success}</p>
-                </div>
-              )}
+              <button
+                onClick={fetchAds}
+                disabled={loading}
+                className="flex items-center gap-2 px-5 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-xl transition-all duration-200 shadow-lg hover:shadow-violet-500/10 disabled:opacity-50 border border-slate-700"
+              >
+                <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+                <span className="font-medium">Refresh</span>
+              </button>
             </div>
 
-            {/* Recent Analyses */}
-            <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-6">
-              <h2 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
-                <Clock className="w-5 h-5" />
-                Recent Analyses
-              </h2>
-              
-              <div className="space-y-3 max-h-96 overflow-y-auto">
-                {recentAnalyses.length === 0 ? (
-                  <p className="text-slate-500 text-center py-4">No analyses yet</p>
-                ) : (
-                  recentAnalyses.map((item: RecentAnalysis) => (
-                    <button
-                      key={item.id}
-                      onClick={() => handleLoadAnalysis(item.id)}
-                      className={`w-full text-left p-3 rounded-lg transition-all ${
-                        selectedAnalysis === item.id
-                          ? 'bg-gradient-to-r from-cyan-50 to-teal-50 border border-cyan-200'
-                          : 'hover:bg-slate-50 border border-slate-100'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between">
-                        <span className="font-medium text-slate-700 truncate">
-                          {item.id}
-                        </span>
-                        <span className={`px-2 py-1 text-xs rounded-full ${
-                          item.file_type === 'video' 
-                            ? 'bg-cyan-100 text-cyan-700'
-                            : 'bg-emerald-100 text-emerald-700'
-                        }`}>
-                          {item.file_type}
-                        </span>
-                      </div>
-                      <p className="text-sm text-slate-500 mt-1">
-                        {new Date(item.created_at).toLocaleString()}
-                      </p>
-                    </button>
-                  ))
-                )}
+            {/* Filters */}
+            <div className="flex flex-col sm:flex-row gap-4">
+              <div className="flex-1 relative">
+                <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500" />
+                <input
+                  type="text"
+                  placeholder="Search by company, title, or text..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="w-full pl-12 pr-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500/40 focus:border-violet-500/40 transition-all placeholder:text-slate-500"
+                />
+              </div>
+              <select
+                value={selectedKeyword}
+                onChange={(e) => setSelectedKeyword(e.target.value)}
+                className="px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500/40 focus:border-violet-500/40 transition-all appearance-none cursor-pointer min-w-[200px]"
+              >
+                {keywords.map((keyword) => (
+                  <option key={keyword} value={keyword}>
+                    {keyword === 'all' ? 'All Keywords' : keyword}
+                  </option>
+                ))}
+              </select>
+              <select
+                value={sortBy}
+                onChange={(e) => setSortBy(e.target.value as 'score' | 'active_time')}
+                className="px-4 py-3 bg-slate-800/50 border border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-violet-500/40 focus:border-violet-500/40 transition-all appearance-none cursor-pointer min-w-[180px]"
+              >
+                <option value="score">Sort by Score</option>
+                <option value="active_time">Sort by Active Time</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </header>
+
+      {/* Main Content */}
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="flex flex-col items-center gap-4">
+              <div className="w-12 h-12 border-4 border-violet-500/30 border-t-violet-500 rounded-full animate-spin" />
+              <p className="text-slate-400">Loading advertisements...</p>
+            </div>
+          </div>
+        ) : filteredAds.length === 0 ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="text-center">
+              <p className="text-slate-400 text-lg">No ads found matching your criteria</p>
+              <button
+                onClick={() => {
+                  setSearchTerm('');
+                  setSelectedKeyword('all');
+                }}
+                className="mt-4 text-violet-400 hover:text-violet-300 transition-colors"
+              >
+                Clear filters
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {filteredAds.map((ad) => (
+              <AdCard key={ad.id} ad={ad} onClick={() => setSelectedAd(ad)} />
+            ))}
+          </div>
+        )}
+      </main>
+
+      {/* Modal */}
+      {selectedAd && (
+        <AdDetailModal ad={selectedAd} onClose={() => setSelectedAd(null)} />
+      )}
+    </div>
+  );
+};
+
+// Ad Card Component
+const AdCard: React.FC<{ ad: Ad; onClick: () => void }> = ({ ad, onClick }) => {
+  const scores = ad.analysis?.scores || {
+    total_score: 0,
+    cta_score: 0,
+    visual_score: 0,
+    value_proposition_score: 0,
+    text_quality_score: 0,
+  };
+
+  const getScoreColor = (score: number): string => {
+    if (score >= 80) return 'text-emerald-400';
+    if (score >= 60) return 'text-amber-400';
+    return 'text-rose-400';
+  };
+
+  const getScoreGradient = (score: number): string => {
+    if (score >= 80) return 'from-emerald-500/20 to-emerald-500/5';
+    if (score >= 60) return 'from-amber-500/20 to-amber-500/5';
+    return 'from-rose-500/20 to-rose-500/5';
+  };
+
+  const scoreMetrics = [
+    { label: 'Visual', value: scores.visual_score, color: 'violet' },
+    { label: 'CTA', value: scores.cta_score, color: 'fuchsia' },
+    { label: 'Value', value: scores.value_proposition_score, color: 'pink' },
+    { label: 'Text', value: scores.text_quality_score, color: 'rose' },
+  ];
+
+  return (
+    <div
+      onClick={onClick}
+      className="group relative bg-gradient-to-br from-slate-800/50 to-slate-800/30 backdrop-blur-sm rounded-2xl border border-slate-700/50 hover:border-violet-500/50 transition-all duration-300 cursor-pointer overflow-hidden hover:shadow-2xl hover:shadow-violet-500/10 transform hover:-translate-y-1"
+    >
+      {/* Gradient overlay on hover */}
+      <div className={`absolute inset-0 bg-gradient-to-br ${getScoreGradient(scores.total_score)} opacity-0 group-hover:opacity-100 transition-opacity duration-300`} />
+
+      <div className="relative p-6">
+        {/* Header */}
+        <div className="flex items-start justify-between mb-4">
+          <div className="flex-1">
+            <h3 className="text-lg font-bold text-white mb-1 line-clamp-1">
+              {ad.company}
+            </h3>
+            <span className="inline-block px-3 py-1 bg-violet-500/20 text-violet-300 text-xs font-medium rounded-full border border-violet-500/30">
+              {ad.search_keyword}
+            </span>
+          </div>
+          <div className="flex flex-col items-end gap-1">
+            <div className={`text-3xl font-bold ${getScoreColor(scores.total_score)}`}>
+              {scores.total_score}
+            </div>
+            <div className="text-xs text-slate-500">Total Score</div>
+          </div>
+        </div>
+
+        {/* Ad Title & Text */}
+        <div className="mb-4 space-y-2">
+          <h4 className="font-semibold text-slate-200 line-clamp-2">{ad.ad_title}</h4>
+          <p className="text-sm text-slate-400 line-clamp-3">{ad.ad_text}</p>
+        </div>
+
+        {/* Score Graph - Horizontal Bars */}
+        <div className="space-y-3 mb-4">
+          {scoreMetrics.map((metric) => (
+            <div key={metric.label} className="space-y-1">
+              <div className="flex items-center justify-between text-xs">
+                <span className="text-slate-400 font-medium">{metric.label}</span>
+                <span className={`font-bold ${getScoreColor(metric.value)}`}>
+                  {metric.value}
+                </span>
+              </div>
+              <div className="h-2 bg-slate-700/50 rounded-full overflow-hidden">
+                <div
+                  className={`h-full bg-gradient-to-r from-${metric.color}-500 to-${metric.color}-400 transition-all duration-500 rounded-full shadow-lg shadow-${metric.color}-500/20`}
+                  style={{ width: `${metric.value}%` }}
+                />
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {/* Footer Info */}
+        <div className="flex items-center justify-between pt-4 border-t border-slate-700/50">
+          <div className="flex items-center gap-3 text-xs text-slate-400">
+            <span className="flex items-center gap-1">
+              <TrendingUp className="w-3 h-3" />
+              {ad.publisher_platform}
+            </span>
+            <span>
+              {ad.image_count > 0 && `${ad.image_count} imgs`}
+              {ad.image_count > 0 && ad.video_count > 0 && ' • '}
+              {ad.video_count > 0 && `${ad.video_count} vids`}
+            </span>
+          </div>
+          {ad.call_to_action && (
+            <span className="px-2 py-1 bg-fuchsia-500/20 text-fuchsia-300 text-xs font-medium rounded border border-fuchsia-500/30">
+              {ad.call_to_action}
+            </span>
+          )}
+        </div>
+      </div>
+
+      {/* Click indicator */}
+      <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
+        <Eye className="w-5 h-5 text-violet-400" />
+      </div>
+    </div>
+  );
+};
+
+// Ad Detail Modal Component
+const AdDetailModal: React.FC<{ ad: Ad; onClose: () => void }> = ({ ad, onClose }) => {
+  const scores = ad.analysis?.scores || {
+    total_score: 0,
+    cta_score: 0,
+    visual_score: 0,
+    value_proposition_score: 0,
+    text_quality_score: 0,
+  };
+
+  const getScoreColor = (score: number): string => {
+    if (score >= 80) return 'text-emerald-400';
+    if (score >= 60) return 'text-amber-400';
+    return 'text-rose-400';
+  };
+
+  const getBarColor = (score: number): string => {
+    if (score >= 80) return 'bg-gradient-to-r from-emerald-500 to-emerald-400';
+    if (score >= 60) return 'bg-gradient-to-r from-amber-500 to-amber-400';
+    return 'bg-gradient-to-r from-rose-500 to-rose-400';
+  };
+
+  const scoreMetrics = [
+    { label: 'Visual Score', value: scores.visual_score, icon: '🎨' },
+    { label: 'CTA Score', value: scores.cta_score, icon: '👆' },
+    { label: 'Value Proposition', value: scores.value_proposition_score, icon: '💎' },
+    { label: 'Text Quality', value: scores.text_quality_score, icon: '📝' },
+  ];
+
+  return (
+    <div className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-in fade-in duration-200">
+      <div className="bg-gradient-to-br from-slate-900 to-slate-800 rounded-3xl border border-slate-700 shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden animate-in slide-in-from-bottom duration-300">
+        {/* Header */}
+        <div className="flex items-start justify-between p-6 border-b border-slate-700/50 bg-slate-800/50">
+          <div className="flex-1">
+            <div className="flex items-center gap-3 mb-2">
+              <h2 className="text-2xl font-bold text-white">{ad.company}</h2>
+              {ad.is_active && (
+                <span className="px-3 py-1 bg-emerald-500/20 text-emerald-300 text-xs font-medium rounded-full border border-emerald-500/30 animate-pulse">
+                  Active
+                </span>
+              )}
+            </div>
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="px-3 py-1 bg-violet-500/20 text-violet-300 text-xs font-medium rounded-full border border-violet-500/30">
+                {ad.search_keyword}
+              </span>
+              <span className="text-sm text-slate-400">{ad.page_name}</span>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="p-2 hover:bg-slate-700 rounded-xl transition-colors"
+          >
+            <X className="w-6 h-6 text-slate-400" />
+          </button>
+        </div>
+
+        {/* Content */}
+        <div className="p-6 overflow-y-auto max-h-[calc(90vh-100px)] space-y-6">
+          {/* Total Score - Large Graph */}
+          <div className="bg-gradient-to-br from-slate-800 to-slate-800/50 rounded-2xl p-6 border border-slate-700/50">
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-lg font-bold text-white">Overall Performance</h3>
+              <div className={`text-5xl font-bold ${getScoreColor(scores.total_score)}`}>
+                {scores.total_score}
+              </div>
+            </div>
+            <div className="h-4 bg-slate-700/50 rounded-full overflow-hidden">
+              <div
+                className={`h-full ${getBarColor(scores.total_score)} transition-all duration-1000 shadow-lg`}
+                style={{ width: `${scores.total_score}%` }}
+              />
+            </div>
+          </div>
+
+          {/* Score Breakdown Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {scoreMetrics.map((metric) => (
+              <div
+                key={metric.label}
+                className="bg-slate-800/30 rounded-xl p-5 border border-slate-700/50 space-y-3"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <span className="text-2xl">{metric.icon}</span>
+                    <span className="text-sm font-medium text-slate-300">{metric.label}</span>
+                  </div>
+                  <span className={`text-2xl font-bold ${getScoreColor(metric.value)}`}>
+                    {metric.value}
+                  </span>
+                </div>
+                <div className="space-y-1">
+                  <div className="h-3 bg-slate-700/50 rounded-full overflow-hidden">
+                    <div
+                      className={`h-full ${getBarColor(metric.value)} transition-all duration-700 shadow-lg`}
+                      style={{ width: `${metric.value}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-xs text-slate-500">
+                    <span>0</span>
+                    <span>50</span>
+                    <span>100</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          {/* Ad Content */}
+          <div className="bg-slate-800/30 rounded-xl p-6 border border-slate-700/50 space-y-4">
+            <h3 className="text-lg font-bold text-white">Ad Content</h3>
+            <div className="space-y-3">
+              <div>
+                <label className="text-xs text-slate-400 uppercase tracking-wider">Title</label>
+                <p className="text-white font-medium mt-1">{ad.ad_title}</p>
+              </div>
+              <div>
+                <label className="text-xs text-slate-400 uppercase tracking-wider">Full Text</label>
+                <p className="text-slate-300 mt-1 leading-relaxed">{ad.full_ad_text}</p>
               </div>
             </div>
           </div>
 
-          {/* Right Column - Analysis Results */}
-          <div className="lg:col-span-2">
-            {analysis ? (
-              <div className="space-y-6">
-                {/* Analysis Header */}
-                <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div>
-                      <h2 className="text-2xl font-bold text-slate-900">
-                        {analysis.analysis_id}
-                      </h2>
-                      <p className="text-slate-600">
-                        {analysis.file_type === 'video' ? 'Video Analysis' : 'Image Analysis'}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      {analysis.creative_report?.overall_score && (
-                        <div className="text-3xl font-bold text-slate-900">
-                          {analysis.creative_report.overall_score}/100
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-
-                {/* Transcript Section */}
-                {analysis.raw_analysis?.transcript?.text && (
-                  <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-6">
-                    <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
-                      <MessageSquare className="w-5 h-5" />
-                      Transcript
-                    </h3>
-                    <div className="p-4 bg-slate-50 rounded-xl border border-slate-200 max-h-60 overflow-y-auto">
-                      <p className="text-slate-700 whitespace-pre-wrap">
-                        {analysis.raw_analysis.transcript.text}
-                      </p>
-                    </div>
-                    {analysis.raw_analysis.transcript.segments && (
-                      <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {analysis.raw_analysis.transcript.segments.slice(0, 4).map((segment: TranscriptSegment, idx: number) => (
-                          <div key={idx} className="p-3 bg-slate-50 rounded-lg border border-slate-200">
-                            <div className="text-sm text-cyan-600 font-medium">
-                              {segment.start?.toFixed(1)}s - {segment.end?.toFixed(1)}s
-                            </div>
-                            <p className="text-slate-700 text-sm mt-1">{segment.text}</p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
-                  </div>
+          {/* Value Proposition */}
+          {ad.analysis?.value_proposition && (
+            <div className="bg-slate-800/30 rounded-xl p-6 border border-slate-700/50 space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="text-lg font-bold text-white">Value Proposition</h3>
+                {ad.analysis.value_proposition.urgency && (
+                  <span className="px-3 py-1 bg-orange-500/20 text-orange-300 text-xs font-medium rounded-full border border-orange-500/30">
+                    ⚡ Urgency Detected
+                  </span>
                 )}
+              </div>
+              {ad.analysis.value_proposition.benefits && ad.analysis.value_proposition.benefits.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {ad.analysis.value_proposition.benefits.map((benefit, idx) => (
+                    <span
+                      key={idx}
+                      className="px-3 py-2 bg-violet-500/10 text-violet-300 text-sm rounded-lg border border-violet-500/20"
+                    >
+                      ✓ {benefit}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
 
-                {/* Creative Report */}
-                {analysis.creative_report && (
-                  <>
-                    {/* Scores */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      {renderScoreCard(
-                        'Opening Hook Strength',
-                        analysis.creative_report.opening_hook?.strength_score || 0,
-                        100,
-                        Zap
-                      )}
-                      {renderScoreCard(
-                        'Copy Quality',
-                        analysis.creative_report.copy_quality_score || 0,
-                        100,
-                        MessageSquare
-                      )}
-                      {renderScoreCard(
-                        'Visual Impact',
-                        analysis.creative_report.visual_analysis?.visual_impact_score || 0,
-                        100,
-                        Eye
-                      )}
-                      {renderScoreCard(
-                        'Pacing',
-                        analysis.creative_report.pacing?.pacing_score || 0,
-                        100,
-                        Clock
-                      )}
+          {/* Media Analysis */}
+          {ad.analysis?.media_analysis && ad.analysis.media_analysis.length > 0 && (
+            <div className="bg-slate-800/30 rounded-xl p-6 border border-slate-700/50 space-y-4">
+              <h3 className="text-lg font-bold text-white">Media Analysis</h3>
+              <div className="space-y-4">
+                {ad.analysis.media_analysis.map((media, idx) => (
+                  <div key={idx} className="bg-slate-900/50 rounded-lg p-4 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <span className="text-sm font-medium text-slate-300 uppercase">
+                        {media.media_type}
+                      </span>
+                      <span className={`text-sm font-medium ${getScoreColor(media.mood_score)}`}>
+                        Mood: {media.mood} ({media.mood_score})
+                      </span>
                     </div>
-
-                    {/* Color Palette */}
-                    {analysis.raw_analysis?.color_palette && (
-                      <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-6">
-                        <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
-                          <Palette className="w-5 h-5" />
+                    {media.colors && media.colors.length > 0 && (
+                      <div>
+                        <label className="text-xs text-slate-400 uppercase tracking-wider block mb-2">
                           Color Palette
-                        </h3>
-                        {renderColorPalette(analysis.raw_analysis.color_palette)}
+                        </label>
+                        <div className="flex gap-2 flex-wrap">
+                          {media.colors.map((color, colorIdx) => (
+                            <div
+                              key={colorIdx}
+                              className="group relative"
+                            >
+                              <div
+                                className="w-10 h-10 rounded-lg border-2 border-slate-600 shadow-lg transition-transform hover:scale-110"
+                                style={{ backgroundColor: color }}
+                              />
+                              <span className="absolute -bottom-6 left-1/2 -translate-x-1/2 text-xs text-slate-400 opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap">
+                                {color}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     )}
-
-                    {/* Emotional Triggers */}
-                    {analysis.creative_report.emotional_triggers && (
-                      <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-6">
-                        <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
-                          <Heart className="w-5 h-5" />
-                          Emotional Triggers
-                        </h3>
-                        {renderEmotionalTriggers(analysis.creative_report.emotional_triggers)}
-                      </div>
-                    )}
-
-                    {/* Face Detection */}
-                    {analysis.raw_analysis?.face_detection && (
-                      <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-6">
-                        <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
-                          <Users className="w-5 h-5" />
-                          Face Detection
-                        </h3>
-                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                          <div className="p-4 bg-gradient-to-br from-cyan-50 to-teal-50 rounded-xl border border-cyan-200">
-                            <div className="text-3xl font-bold text-cyan-700 mb-1">
-                              {analysis.raw_analysis.face_detection.unique_people_count}
-                            </div>
-                            <p className="text-sm text-cyan-600">Unique People</p>
-                          </div>
-                          <div className="p-4 bg-gradient-to-br from-cyan-50 to-teal-50 rounded-xl border border-cyan-200">
-                            <div className="text-3xl font-bold text-cyan-700 mb-1">
-                              {analysis.raw_analysis.face_detection.max_faces_in_single_frame}
-                            </div>
-                            <p className="text-sm text-cyan-600">Max Faces in Frame</p>
-                          </div>
-                          <div className="p-4 bg-gradient-to-br from-cyan-50 to-teal-50 rounded-xl border border-cyan-200">
-                            <div className="text-3xl font-bold text-cyan-700 mb-1">
-                              {analysis.raw_analysis.face_detection.frames_with_faces}
-                            </div>
-                            <p className="text-sm text-cyan-600">Frames with Faces</p>
+                    {media.pacing && (
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-3">
+                        <div className="bg-slate-800/50 rounded-lg p-3 text-center">
+                          <div className="text-xs text-slate-400">Scenes</div>
+                          <div className="text-lg font-bold text-white">{media.pacing.scene_count}</div>
+                        </div>
+                        <div className="bg-slate-800/50 rounded-lg p-3 text-center">
+                          <div className="text-xs text-slate-400">Avg Scene</div>
+                          <div className="text-lg font-bold text-white">{media.pacing.avg_scene_duration.toFixed(1)}s</div>
+                        </div>
+                        <div className="bg-slate-800/50 rounded-lg p-3 text-center">
+                          <div className="text-xs text-slate-400">Hook Speed</div>
+                          <div className="text-lg font-bold text-white">{media.pacing.hook_speed_sec.toFixed(1)}s</div>
+                        </div>
+                        <div className="bg-slate-800/50 rounded-lg p-3 text-center">
+                          <div className="text-xs text-slate-400">Pacing</div>
+                          <div className={`text-lg font-bold ${getScoreColor(media.pacing.pacing_score)}`}>
+                            {media.pacing.pacing_score}
                           </div>
                         </div>
                       </div>
                     )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
 
-                    {/* View Age Estimate */}
-                    {analysis.creative_report.viewer_age_estimate && (
-                      <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-6">
-                        <h3 className="text-xl font-bold text-slate-800 mb-4 flex items-center gap-2">
-                          <Users className="w-5 h-5" />
-                          Target Audience
-                        </h3>
-                        <div className="p-4 bg-slate-50 rounded-xl border border-slate-200">
-                          <div className="flex items-center justify-between mb-3">
-                            <div>
-                              <div className="text-2xl font-bold text-slate-900">
-                                {analysis.creative_report.viewer_age_estimate.min} - {analysis.creative_report.viewer_age_estimate.max} years
-                              </div>
-                              <p className="text-slate-600">
-                                Estimated target age range
-                              </p>
-                            </div>
-                            <div className="text-right">
-                              <div className="text-lg font-bold text-emerald-600">
-                                {analysis.creative_report.viewer_age_estimate.confidence}% confidence
-                              </div>
-                            </div>
-                          </div>
-                          <p className="text-slate-700">
-                            {analysis.creative_report.viewer_age_estimate.reason}
-                          </p>
-                        </div>
-                      </div>
-                    )}
-                  </>
-                )}
+          {/* Platform & Metrics */}
+          <div className="grid grid-cols-2 gap-4">
+            <div className="bg-slate-800/30 rounded-xl p-5 border border-slate-700/50">
+              <label className="text-xs text-slate-400 uppercase tracking-wider">Platform</label>
+              <p className="text-white font-medium mt-1">{ad.publisher_platform}</p>
+              <p className="text-sm text-slate-400 mt-1">{ad.display_format}</p>
+            </div>
+            <div className="bg-slate-800/30 rounded-xl p-5 border border-slate-700/50">
+              <label className="text-xs text-slate-400 uppercase tracking-wider">Media Count</label>
+              <div className="flex items-center gap-4 mt-1">
+                <span className="text-white font-medium">{ad.image_count} Images</span>
+                <span className="text-white font-medium">{ad.video_count} Videos</span>
               </div>
-            ) : (
-              /* Empty State */
-              <div className="bg-white rounded-2xl shadow-lg border border-slate-200 p-12 text-center">
-                <div className="max-w-md mx-auto">
-                  <div className="w-20 h-20 mx-auto mb-6 bg-gradient-to-br from-cyan-500 to-teal-600 rounded-2xl flex items-center justify-center">
-                    <Eye className="w-10 h-10 text-white" />
-                  </div>
-                  <h3 className="text-xl font-bold text-slate-800 mb-3">
-                    No Analysis Yet
-                  </h3>
-                  <p className="text-slate-600 mb-6">
-                    Enter a video path and start your first analysis to see detailed insights here.
-                  </p>
-                  <div className="flex items-center justify-center gap-3 text-slate-500">
-                    <div className="flex items-center gap-2">
-                      <CheckCircle className="w-4 h-4" />
-                      <span className="text-sm">Transcript Analysis</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <CheckCircle className="w-4 h-4" />
-                      <span className="text-sm">Emotional Triggers</span>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <CheckCircle className="w-4 h-4" />
-                      <span className="text-sm">Face Detection</span>
-                    </div>
-                  </div>
-                </div>
+            </div>
+          </div>
+
+          {/* CTA & Link */}
+          <div className="flex gap-3">
+            {ad.call_to_action && (
+              <div className="flex-1 bg-fuchsia-500/10 rounded-xl p-5 border border-fuchsia-500/30">
+                <label className="text-xs text-fuchsia-400 uppercase tracking-wider">Call to Action</label>
+                <p className="text-white font-medium mt-1">{ad.call_to_action}</p>
               </div>
+            )}
+            {ad.link_url && (
+              <a
+                href={ad.link_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-2 px-6 py-5 bg-violet-500 hover:bg-violet-600 text-white rounded-xl transition-colors shadow-lg shadow-violet-500/20"
+              >
+                <ExternalLink className="w-5 h-5" />
+                <span className="font-medium">View Ad</span>
+              </a>
             )}
           </div>
         </div>
